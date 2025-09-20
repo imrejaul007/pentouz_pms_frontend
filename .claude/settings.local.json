@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(touch:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Read(/C:\\Users\\Mukul raj\\Downloads\\project-bolt-sb1-vhvvuqkj\\project/**)",
+      "Read(/C:\\Users\\Mukul raj\\Downloads\\project-bolt-sb1-vhvvuqkj\\project\\backend/**)",
+      "Read(/C:\\Users\\Mukul raj\\Downloads\\project-bolt-sb1-vhvvuqkj\\project\\backend\\src/**)",
+      "Read(/C:\\Users\\Mukul raj\\Downloads\\project-bolt-sb1-vhvvuqkj\\project\\backend/**)",
+      "Read(/C:\\Users\\Mukul raj\\Downloads\\project-bolt-sb1-vhvvuqkj\\project\\backend/**)",
+      "Read(/C:\\Users\\Mukul raj\\Downloads\\project-bolt-sb1-vhvvuqkj\\project\\backend/**)",
+      "Read(/C:\\Users\\Mukul raj\\Downloads\\project-bolt-sb1-vhvvuqkj\\project\\backend/**)",
+      "Bash(npm run seed:*)",
+      "Bash(taskkill:*)",
+      "Bash(rs)",
+      "mcp__ide__getDiagnostics"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
