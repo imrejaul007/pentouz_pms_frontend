@@ -1,4 +1,5 @@
 import { ApiResponse } from '../types/api';
+import { API_CONFIG } from '../config/api';
 
 export interface GuestService {
   _id: string;
@@ -54,7 +55,7 @@ export interface GuestServiceFilters {
 }
 
 class AdminGuestServicesService {
-  private baseURL = '/api/v1/guest-services';
+  private baseURL = `${API_CONFIG.BASE_URL}/guest-services`;
   private hotelIdCache: string | null = null;
   private hotelIdCacheExpiry: number = 0;
   
@@ -67,25 +68,43 @@ class AdminGuestServicesService {
     const baseURL = options.baseURL || this.baseURL;
     const { baseURL: _, ...fetchOptions } = options;
 
-    const response = await fetch(`${baseURL}${endpoint}`, {
-      ...fetchOptions,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        ...fetchOptions.headers,
-      },
-    });
+    try {
+      const response = await fetch(`${baseURL}${endpoint}`, {
+        ...fetchOptions,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          ...fetchOptions.headers,
+        },
+      });
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
-        throw new Error('Authentication required');
+      if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+          throw new Error('Authentication required');
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
 
-    return response.json();
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response received:', text.substring(0, 200));
+        throw new Error('Server returned non-JSON response. This might be a deployment configuration issue.');
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('API request failed:', {
+        url: `${baseURL}${endpoint}`,
+        error: error.message,
+        baseURL,
+        endpoint
+      });
+      throw error;
+    }
   }
 
   private async getUserHotelId(): Promise<string> {
@@ -120,8 +139,8 @@ class AdminGuestServicesService {
     // Try to get hotelId from user profile API
     try {
       console.log('Attempting to get hotelId from user profile...');
-      const response = await this.fetchWithAuth('/auth/me', { baseURL: '/api/v1' });
-      const userData = response.data?.user;
+      const response = await this.fetchWithAuth('/auth/me', { baseURL: API_CONFIG.BASE_URL });
+      const userData = (response.data as any)?.user;
       
       if (userData?.hotelId) {
         console.log('Found hotelId from user profile:', userData.hotelId);
@@ -228,7 +247,7 @@ class AdminGuestServicesService {
     queryParams.append('hotelId', targetHotelId);
     const endpoint = `/available-staff?${queryParams.toString()}`;
     const response = await this.fetchWithAuth(endpoint);
-    return response;
+    return response as ApiResponse<Array<{ _id: string; name: string; email: string; department: string }>>;
   }
 
   // Get guest satisfaction ratings for completed services

@@ -160,11 +160,7 @@ export default function StaffServiceRequests() {
   const handleUpdateStatus = async (requestId: string, status: string, notes?: string) => {
     try {
       setUpdating(requestId);
-      await adminGuestServicesService.updateServiceStatus(requestId, { 
-        status, 
-        notes,
-        completedTime: status === 'completed' ? new Date().toISOString() : undefined
-      });
+      await adminGuestServicesService.updateStatus(requestId, status, notes);
       
       const statusLabels: { [key: string]: string } = {
         'in_progress': 'started',

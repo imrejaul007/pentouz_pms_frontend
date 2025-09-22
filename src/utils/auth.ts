@@ -1,4 +1,5 @@
 // Authentication utility functions
+import { API_CONFIG } from '../config/api';
 export const AUTH_CREDENTIALS = {
   ADMIN: {
     email: 'admin@hotel.com',
@@ -29,7 +30,7 @@ export const clearAuthToken = (): void => {
 
 export const loginAsAdmin = async (): Promise<string> => {
   try {
-    const response = await fetch('http://localhost:4000/api/v1/auth/login', {
+    const response = await fetch(`${API_CONFIG.BASE_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -53,7 +54,7 @@ export const loginAsAdmin = async (): Promise<string> => {
 
 export const loginAsGuest = async (): Promise<string> => {
   try {
-    const response = await fetch('http://localhost:4000/api/v1/auth/login', {
+    const response = await fetch(`${API_CONFIG.BASE_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

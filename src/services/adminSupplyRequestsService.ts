@@ -1,4 +1,5 @@
 import { ApiResponse } from '../types/api';
+import { API_CONFIG } from '../config/api';
 
 export interface SupplyRequestItem {
   name: string;
@@ -163,7 +164,7 @@ export interface OrderRequestData {
 }
 
 class AdminSupplyRequestsService {
-  private baseURL = 'http://localhost:4000/api/v1/supply-requests';
+  private baseURL = `${API_CONFIG.BASE_URL}/supply-requests`;
   private hotelIdCache: string | null = null;
   private hotelIdCacheExpiry: number = 0;
   
@@ -229,7 +230,7 @@ class AdminSupplyRequestsService {
     // Try to get hotelId from user profile API
     try {
       console.log('Attempting to get hotelId from user profile...');
-      const response = await this.fetchWithAuth('/auth/me', { baseURL: 'http://localhost:4000/api/v1' });
+      const response = await this.fetchWithAuth('/auth/me', { baseURL: API_CONFIG.BASE_URL });
       const userData = response.data?.user;
       
       if (userData?.hotelId) {

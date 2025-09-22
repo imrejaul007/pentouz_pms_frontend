@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import { API_CONFIG } from '../config/api';
 
 export interface WebSocketMessage {
   type: string;
@@ -45,7 +46,7 @@ export function useWebSocket(options: WebSocketHookOptions = {}) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = process.env.NODE_ENV === 'production' 
       ? window.location.host 
-      : 'localhost:4000';
+      : API_CONFIG.WS_URL.replace(/^ws[s]?:\/\//, '');
     const token = localStorage.getItem('token');
     
     return `${protocol}//${host}/ws/notifications?token=${token}`;

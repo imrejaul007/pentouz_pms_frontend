@@ -1,5 +1,6 @@
 import React from 'react';
 import { io, Socket } from 'socket.io-client';
+import { API_CONFIG } from '../config/api';
 
 // Browser-compatible EventEmitter implementation
 class EventEmitter {
@@ -80,7 +81,7 @@ class RealTimeService extends EventEmitter {
 
   private getSocketUrl(): string {
     // Connect to backend server using Socket.IO
-    return 'http://localhost:4000';
+    return API_CONFIG.WS_URL;
   }
 
   private log(message: string, ...args: any[]) {

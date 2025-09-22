@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_CONFIG } from '../../config/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -138,7 +139,7 @@ const UnifiedBillingSystem: React.FC = () => {
       
                    // Fetch active guests from backend
       try {
-        const guestsResponse = await fetch(`http://localhost:4000/api/v1/admin-dashboard/checked-in-bookings`, {
+        const guestsResponse = await fetch(`${API_CONFIG.BASE_URL}/admin-dashboard/checked-in-bookings`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'application/json'
@@ -180,7 +181,7 @@ const UnifiedBillingSystem: React.FC = () => {
 
       // Then try to fetch from backend to enhance the data
       try {
-        const outletsResponse = await fetch(`http://localhost:4000/api/v1/pos/outlets`, {
+        const outletsResponse = await fetch(`${API_CONFIG.BASE_URL}/pos/outlets`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
             'Content-Type': 'application/json'
@@ -200,7 +201,7 @@ const UnifiedBillingSystem: React.FC = () => {
         
         for (const outlet of outletsData.data || []) {
           try {
-            const menuResponse = await fetch(`http://localhost:4000/api/v1/pos/menus/outlet/${outlet._id}`, {
+            const menuResponse = await fetch(`${API_CONFIG.BASE_URL}/pos/menus/outlet/${outlet._id}`, {
               headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`,
                 'Content-Type': 'application/json'
