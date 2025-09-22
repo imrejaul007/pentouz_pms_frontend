@@ -172,7 +172,7 @@ export interface AdvancedReservationsStats {
 }
 
 class AdvancedReservationsService {
-  private baseURL = '/advanced-reservations';
+  private baseURL = '/api/v1/advanced-reservations';
 
   // Get all advanced reservations
   async getAdvancedReservations(filters?: AdvancedReservationFilters): Promise<{

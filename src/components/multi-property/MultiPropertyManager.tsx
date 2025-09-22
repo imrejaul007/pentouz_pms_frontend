@@ -161,6 +161,8 @@ export const MultiPropertyManager: React.FC = () => {
   const [showEditGroup, setShowEditGroup] = useState(false);
   const [selectedGroupForEdit, setSelectedGroupForEdit] = useState<PropertyGroup | null>(null);
   const [showPropertyAssignment, setShowPropertyAssignment] = useState(false);
+  const [showGroupDashboard, setShowGroupDashboard] = useState(false);
+  const [selectedGroupForDashboard, setSelectedGroupForDashboard] = useState<PropertyGroup | null>(null);
 
   // Pagination state
   const [pagination, setPagination] = useState({
@@ -171,11 +173,13 @@ export const MultiPropertyManager: React.FC = () => {
   });
 
   // React Query hooks
-  const { data: properties = [], isLoading: propertiesLoading } = useProperties();
+  const { data: propertiesData = [], isLoading: propertiesLoading, refetch: refetchProperties } = useProperties();
+  const properties = Array.isArray(propertiesData) ? propertiesData : [];
   const {
     data: propertyGroupsData,
     isLoading: groupsLoading,
-    error: groupsError
+    error: groupsError,
+    refetch: refetchPropertyGroups
   } = usePropertyGroups({
     page: pagination.currentPage,
     limit: pagination.itemsPerPage,
@@ -186,6 +190,19 @@ export const MultiPropertyManager: React.FC = () => {
   // Extract data from React Query response
   const propertyGroups = propertyGroupsData?.data || [];
   const groupsPagination = propertyGroupsData?.pagination;
+
+  // Combined loading and error states
+  const loading = propertiesLoading || groupsLoading;
+  const error = groupsError;
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setPagination(prev => ({ ...prev, currentPage: page }));
+  };
+
+  const handleItemsPerPageChange = (itemsPerPage: number) => {
+    setPagination(prev => ({ ...prev, itemsPerPage, currentPage: 1 }));
+  };
 
   // Mutations
   const createGroupMutation = useCreatePropertyGroup();
@@ -210,203 +227,9 @@ export const MultiPropertyManager: React.FC = () => {
     }
   }, [groupsPagination]);
 
-  // Fetch property groups from API
-  useEffect(() => {
-    fetchPropertyGroups();
-    fetchProperties();
-  }, []);
 
-  const fetchPropertyGroups = async (page = 1, limit = 20) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const response = await propertyGroupsApi.getGroups({
-        page,
-        limit,
-        ...(statusFilter !== 'all' && { status: statusFilter }),
-        ...(searchTerm && { search: searchTerm })
-      });
 
-      setPropertyGroups(response.data.data || []);
-      setPagination({
-        currentPage: response.data.pagination?.page || 1,
-        itemsPerPage: response.data.pagination?.limit || 20,
-        totalItems: response.data.pagination?.total || 0,
-        totalPages: response.data.pagination?.pages || 0
-      });
-    } catch (err: any) {
-      console.error('Error fetching property groups:', err);
-      setError(err.response?.data?.message || 'Failed to fetch property groups');
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fetch property groups. Please try again."
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  // Pagination handlers
-  const handlePageChange = (page: number) => {
-    fetchPropertyGroups(page, pagination.itemsPerPage);
-  };
-
-  const handleItemsPerPageChange = (itemsPerPage: number) => {
-    fetchPropertyGroups(1, itemsPerPage);
-  };
-
-  const fetchProperties = async () => {
-    try {
-      setPropertiesLoading(true);
-      // Fetch hotels/properties from API
-      const response = await api.get('/admin/hotels');
-      console.log('Hotels API response:', response.data);
-
-      // Handle different response structures
-      let hotelsData = [];
-      if (response.data.data && response.data.data.hotels && Array.isArray(response.data.data.hotels)) {
-        hotelsData = response.data.data.hotels;
-      } else if (response.data.data && Array.isArray(response.data.data)) {
-        hotelsData = response.data.data;
-      } else if (response.data.hotels && Array.isArray(response.data.hotels)) {
-        hotelsData = response.data.hotels;
-      } else if (Array.isArray(response.data)) {
-        hotelsData = response.data;
-      }
-
-      console.log('Processed hotelsData:', hotelsData);
-
-      // Fetch analytics data for each hotel
-      const hotelsWithAnalytics = await Promise.all(
-        hotelsData.map(async (hotel: any) => {
-          try {
-            // Get current analytics data for the hotel (last 30 days)
-            const analyticsResponse = await api.get('/admin-dashboard/kpis', {
-              params: {
-                period: 'month'
-              }
-            });
-            
-            const analytics = analyticsResponse.data.data;
-            console.log('Analytics response for hotel:', hotel.name, analytics);
-
-            return {
-              ...hotel,
-              analytics: {
-                revenue: analytics.totalRevenue || 0,
-                occupancyRate: analytics.occupancy?.rate || 0,
-                adr: analytics.revenue?.averageDailyRate || 0,
-                revpar: analytics.revenue?.revenuePerAvailableRoom || 0,
-                bookings: analytics.totalBookings || 0,
-                totalRooms: analytics.totalRooms || 0,
-                activeGuests: analytics.activeGuests || 0,
-                lastMonth: {
-                  revenue: 0, // Previous month comparison would need separate endpoint
-                  occupancyRate: 0,
-                  adr: 0,
-                  revpar: 0,
-                  bookings: 0
-                }
-              }
-            };
-          } catch (analyticsError) {
-            console.warn(`Failed to fetch analytics for hotel ${hotel._id}:`, analyticsError);
-            // Return hotel with default analytics if analytics fetch fails
-            return {
-              ...hotel,
-              analytics: {
-                revenue: 0,
-                occupancyRate: 0,
-                adr: 0,
-                revpar: 0,
-                bookings: 0,
-                totalRooms: 0,
-                activeGuests: 0,
-                lastMonth: {
-                  revenue: 0,
-                  occupancyRate: 0,
-                  adr: 0,
-                  revpar: 0,
-                  bookings: 0
-                }
-              }
-            };
-          }
-        })
-      );
-      
-      // Transform hotel data to Property interface format
-      const transformedProperties: Property[] = hotelsWithAnalytics.map((hotel: any) => ({
-        id: hotel._id,
-        name: hotel.name,
-        brand: hotel.brand || 'Independent',
-        type: hotel.type || 'hotel',
-        location: {
-          address: hotel.address?.street || '',
-          city: hotel.address?.city || '',
-          country: hotel.address?.country || '',
-          coordinates: {
-            lat: hotel.address?.coordinates?.latitude || 0,
-            lng: hotel.address?.coordinates?.longitude || 0
-          }
-        },
-        contact: {
-          phone: hotel.contact?.phone || '',
-          email: hotel.contact?.email || '',
-          manager: hotel.manager || 'N/A'
-        },
-        rooms: {
-          total: hotel.analytics?.totalRooms || 100, // fallback to default hotel room count
-          occupied: hotel.analytics?.activeGuests || 0,
-          available: (hotel.analytics?.totalRooms || 100) - (hotel.analytics?.activeGuests || 0),
-          outOfOrder: 0
-        },
-        performance: {
-          occupancyRate: hotel.analytics.occupancyRate,
-          adr: hotel.analytics.adr,
-          revpar: hotel.analytics.revpar,
-          revenue: hotel.analytics.revenue,
-          lastMonth: {
-            occupancyRate: hotel.analytics.lastMonth.occupancyRate,
-            adr: hotel.analytics.lastMonth.adr,
-            revpar: hotel.analytics.lastMonth.revpar,
-            revenue: hotel.analytics.lastMonth.revenue
-          }
-        },
-        amenities: hotel.amenities || [],
-        rating: hotel.rating || 0,
-        status: hotel.isActive ? 'active' : 'inactive',
-        features: {
-          pms: hotel.features?.pms || false,
-          pos: hotel.features?.pos || false,
-          spa: hotel.features?.spa || false,
-          restaurant: hotel.features?.restaurant || false,
-          parking: hotel.features?.parking || false,
-          wifi: hotel.features?.wifi || false,
-          fitness: hotel.features?.fitness || false,
-          pool: hotel.features?.pool || false
-        },
-        operationalHours: {
-          checkIn: hotel.policies?.checkInTime || '15:00',
-          checkOut: hotel.policies?.checkOutTime || '11:00',
-          frontDesk: '24/7'
-        },
-        originalHotel: hotel // Store original hotel data for editing
-      }));
-      
-      setProperties(transformedProperties);
-    } catch (err: any) {
-      console.error('Error fetching properties:', err);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fetch properties. Please try again."
-      });
-    } finally {
-      setPropertiesLoading(false);
-    }
-  };
 
   // Property Group Management Functions
   const handleCreateGroup = async (groupData: any) => {
@@ -416,7 +239,7 @@ export const MultiPropertyManager: React.FC = () => {
         title: "Success",
         description: "Property group created successfully"
       });
-      fetchPropertyGroups();
+      refetchPropertyGroups();
       setShowAddGroup(false);
     } catch (err: any) {
       console.error('Error creating group:', err);
@@ -435,7 +258,7 @@ export const MultiPropertyManager: React.FC = () => {
         title: "Success",
         description: "Property group updated successfully"
       });
-      fetchPropertyGroups();
+      refetchPropertyGroups();
     } catch (err: any) {
       console.error('Error updating group:', err);
       toast({
@@ -454,7 +277,7 @@ export const MultiPropertyManager: React.FC = () => {
           title: "Success",
           description: "Property group deleted successfully"
         });
-        fetchPropertyGroups();
+        refetchPropertyGroups();
         if (selectedGroup?.id === groupId) {
           setSelectedGroup(null);
         }
@@ -476,7 +299,7 @@ export const MultiPropertyManager: React.FC = () => {
         title: "Success",
         description: "Group settings synced successfully"
       });
-      fetchPropertyGroups();
+      refetchPropertyGroups();
     } catch (err: any) {
       console.error('Error syncing group settings:', err);
       toast({
@@ -495,8 +318,8 @@ export const MultiPropertyManager: React.FC = () => {
         title: "Success",
         description: `Added ${propertyIds.length} property(ies) to group successfully`
       });
-      fetchPropertyGroups();
-      fetchProperties();
+      refetchPropertyGroups();
+      refetchProperties();
     } catch (err: any) {
       console.error('Error adding properties to group:', err);
       toast({
@@ -515,8 +338,8 @@ export const MultiPropertyManager: React.FC = () => {
           title: "Success",
           description: `Removed ${propertyIds.length} property(ies) from group successfully`
         });
-        fetchPropertyGroups();
-        fetchProperties();
+        refetchPropertyGroups();
+        refetchProperties();
       } catch (err: any) {
         console.error('Error removing properties from group:', err);
         toast({
@@ -667,7 +490,7 @@ export const MultiPropertyManager: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold">₹{(group.metrics?.totalRevenue || 0).toLocaleString()}</div>
+                    <div className="text-2xl font-bold">₹{(group.performance?.totalRevenue || 0).toLocaleString()}</div>
                     <div className="text-sm text-muted-foreground">Total Revenue</div>
                   </div>
                 </div>
@@ -1118,13 +941,13 @@ export const MultiPropertyManager: React.FC = () => {
                   </div>
                   <div>
                     <div className="text-xl font-bold text-green-600">
-                      {group.metrics ? `${group.metrics.avgOccupancy}%` : 'N/A'}
+                      {group.performance.avgOccupancy ? `${group.performance.avgOccupancy}%` : 'N/A'}
                     </div>
                     <div className="text-xs text-muted-foreground">Avg Occupancy</div>
                   </div>
                   <div>
                     <div className="text-xl font-bold text-purple-600">
-                      ₹{(group.metrics?.totalRevenue || 0).toLocaleString()}
+                      ₹{(group.performance?.totalRevenue || 0).toLocaleString()}
                     </div>
                     <div className="text-xs text-muted-foreground">Revenue</div>
                   </div>
@@ -1153,8 +976,8 @@ export const MultiPropertyManager: React.FC = () => {
                       size="sm" 
                       className="flex-1"
                       onClick={() => {
-                        // Navigate to group dashboard
-                        setSelectedGroup(group);
+                        setSelectedGroupForDashboard(group);
+                        setShowGroupDashboard(true);
                       }}
                     >
                       <BarChart3 className="mr-1 h-3 w-3" />
@@ -1255,8 +1078,8 @@ export const MultiPropertyManager: React.FC = () => {
           </span>
           <Button 
             onClick={() => {
-              fetchPropertyGroups();
-              fetchProperties();
+              refetchPropertyGroups();
+              refetchProperties();
             }}
             className="mt-4"
           >
@@ -1274,8 +1097,8 @@ export const MultiPropertyManager: React.FC = () => {
         <h2 className="text-3xl font-bold tracking-tight">Multi-Property Manager</h2>
         <div className="flex space-x-2">
           <Button variant="outline" onClick={() => {
-            fetchPropertyGroups();
-            fetchProperties();
+            refetchPropertyGroups();
+            refetchProperties();
           }}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh Data
@@ -1604,7 +1427,7 @@ export const MultiPropertyManager: React.FC = () => {
         isOpen={showAddProperty}
         onClose={() => setShowAddProperty(false)}
         onSuccess={() => {
-          fetchProperties();
+          refetchProperties();
           setShowAddProperty(false);
         }}
       />
@@ -1617,7 +1440,7 @@ export const MultiPropertyManager: React.FC = () => {
           setSelectedPropertyForEdit(null);
         }}
         onSuccess={() => {
-          fetchProperties();
+          refetchProperties();
           setShowEditProperty(false);
           setSelectedPropertyForEdit(null);
         }}
@@ -1629,7 +1452,7 @@ export const MultiPropertyManager: React.FC = () => {
         isOpen={showAddGroup}
         onClose={() => setShowAddGroup(false)}
         onSuccess={() => {
-          fetchPropertyGroups();
+          refetchPropertyGroups();
           setShowAddGroup(false);
         }}
       />
@@ -1642,7 +1465,7 @@ export const MultiPropertyManager: React.FC = () => {
           setSelectedGroupForEdit(null);
         }}
         onSuccess={() => {
-          fetchPropertyGroups();
+          refetchPropertyGroups();
           setShowEditGroup(false);
           setSelectedGroupForEdit(null);
         }}
@@ -1656,6 +1479,213 @@ export const MultiPropertyManager: React.FC = () => {
         properties={properties}
         groups={propertyGroups}
       />
+
+      {/* Group Dashboard Modal */}
+      {showGroupDashboard && selectedGroupForDashboard && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl">{selectedGroupForDashboard.name} Dashboard</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Comprehensive analytics and performance overview
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowGroupDashboard(false)}
+                >
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Key Performance Metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-2">
+                      <Building2 className="h-5 w-5 text-blue-600" />
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Properties</p>
+                        <p className="text-2xl font-bold">{selectedGroupForDashboard.properties?.length || 0}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-2">
+                      <TrendingUp className="h-5 w-5 text-green-600" />
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Avg Occupancy</p>
+                        <p className="text-2xl font-bold text-green-600">
+                          {selectedGroupForDashboard.performance?.avgOccupancy || 0}%
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-2">
+                      <IndianRupee className="h-5 w-5 text-purple-600" />
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
+                        <p className="text-2xl font-bold text-purple-600">
+                          ₹{(selectedGroupForDashboard.performance?.totalRevenue || 0).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center space-x-2">
+                      <Users className="h-5 w-5 text-orange-600" />
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Total Rooms</p>
+                        <p className="text-2xl font-bold text-orange-600">
+                          {selectedGroupForDashboard.properties?.reduce((sum, p) => sum + (p.rooms?.total || 0), 0) || 0}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Group Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Group Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Group Type</p>
+                      <p className="text-lg capitalize">{selectedGroupForDashboard.groupType || 'Standard'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Status</p>
+                      <Badge className={selectedGroupForDashboard.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                        {selectedGroupForDashboard.status || 'Active'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Manager</p>
+                      <p className="text-lg">{selectedGroupForDashboard.manager || 'Not assigned'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Budget</p>
+                      <p className="text-lg">₹{(selectedGroupForDashboard.budget || 0).toLocaleString()}</p>
+                    </div>
+                  </div>
+                  {selectedGroupForDashboard.description && (
+                    <div className="mt-4">
+                      <p className="text-sm font-medium text-muted-foreground">Description</p>
+                      <p className="text-sm mt-1">{selectedGroupForDashboard.description}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Properties in Group */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Properties in Group</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {selectedGroupForDashboard.properties && selectedGroupForDashboard.properties.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {selectedGroupForDashboard.properties.map((property: any) => (
+                        <div key={property.id || property._id} className="p-4 border rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-medium">{property.name}</h4>
+                              <p className="text-sm text-muted-foreground">{property.location?.city}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-medium">{property.rooms?.total || 0} rooms</p>
+                              <p className="text-sm text-green-600">{property.performance?.occupancyRate || 0}% occupied</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Building2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">No properties assigned to this group</p>
+                      <Button
+                        variant="outline"
+                        className="mt-2"
+                        onClick={() => {
+                          setShowGroupDashboard(false);
+                          openPropertyAssignmentModal(selectedGroupForDashboard);
+                        }}
+                      >
+                        Assign Properties
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Group Settings Summary */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Group Settings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Base Currency</p>
+                      <p className="text-lg">{selectedGroupForDashboard.settings?.baseCurrency || 'INR'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Timezone</p>
+                      <p className="text-lg">{selectedGroupForDashboard.settings?.timezone || 'UTC'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">Default Language</p>
+                      <p className="text-lg">{selectedGroupForDashboard.settings?.defaultLanguage || 'en'}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedGroupForEdit(selectedGroupForDashboard);
+                    setShowEditGroup(true);
+                    setShowGroupDashboard(false);
+                  }}
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  Edit Settings
+                </Button>
+                <Button
+                  onClick={() => {
+                    openPropertyAssignmentModal(selectedGroupForDashboard);
+                    setShowGroupDashboard(false);
+                  }}
+                >
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Manage Properties
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };
