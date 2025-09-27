@@ -217,7 +217,7 @@ async function handleApiRequest(request) {
 // Handle mutating requests (POST, PUT, PATCH, DELETE)
 async function handleMutatingRequest(request) {
   try {
-    // Try network first
+    // Try network first - don't clone unless needed for background sync
     const networkResponse = await fetch(request);
     if (networkResponse.ok) {
       return networkResponse;
@@ -225,36 +225,43 @@ async function handleMutatingRequest(request) {
     throw new Error(`Network response not ok: ${networkResponse.status}`);
   } catch (error) {
     console.log('Mutating request failed, queuing for background sync');
-    
-    // Queue for background sync
-    const url = new URL(request.url);
-    const requestData = {
-      url: request.url,
-      method: request.method,
-      headers: Object.fromEntries(request.headers.entries()),
-      body: request.method !== 'GET' ? await request.clone().text() : null,
-      timestamp: new Date().toISOString()
-    };
-    
-    // Store in IndexedDB for background sync
-    await storeForBackgroundSync(requestData, getSyncTag(url.pathname));
-    
-    // Return immediate response indicating queued for sync
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Request queued for synchronization when online',
-        queued: true,
+
+    // Only queue for background sync if we can safely clone the request
+    try {
+      const clonedRequest = request.clone();
+      const url = new URL(clonedRequest.url);
+      const requestData = {
+        url: clonedRequest.url,
+        method: clonedRequest.method,
+        headers: Object.fromEntries(clonedRequest.headers.entries()),
+        body: clonedRequest.method !== 'GET' ? await clonedRequest.text() : null,
         timestamp: new Date().toISOString()
-      }),
-      {
-        status: 202,
-        statusText: 'Accepted',
-        headers: {
-          'Content-Type': 'application/json'
+      };
+
+      // Store in IndexedDB for background sync
+      await storeForBackgroundSync(requestData, getSyncTag(url.pathname));
+
+      // Return immediate response indicating queued for sync
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Request queued for synchronization when online',
+          queued: true,
+          timestamp: new Date().toISOString()
+        }),
+        {
+          status: 202,
+          statusText: 'Accepted',
+          headers: {
+            'Content-Type': 'application/json'
+          }
         }
-      }
-    );
+      );
+    } catch (cloneError) {
+      console.error('Failed to clone request for background sync:', cloneError);
+      // Return network error as-is if we can't queue for sync
+      throw error;
+    }
   }
 }
 
