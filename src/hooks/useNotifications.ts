@@ -101,3 +101,23 @@ function getEmojiForNotificationType(type: string): string {
   
   return emojiMap[type] || '📢';
 }
+
+export function useNotificationStream() {
+  const { connect, disconnect, connectionState } = useRealTime();
+
+  useEffect(() => {
+    // Auto-connect to notification stream when component mounts
+    if (connectionState === 'disconnected') {
+      connect();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      // Don't auto-disconnect as other components might be using the connection
+    };
+  }, [connect, connectionState]);
+
+  return {
+    connectionState
+  };
+}

@@ -12,7 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import { guestServiceRequestService, GuestServiceRequest, ServiceStatsResponse, StaffMember } from '@/services/guestServiceRequestService';
 import { toast } from 'react-hot-toast';
 import {
-  ClipboardListIcon,
+  Users,
   AlertCircleIcon,
   CheckCircleIcon,
   ClockIcon,
@@ -228,25 +228,61 @@ export const SpecialRequestTracker: React.FC = () => {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <ClipboardListIcon className="h-4 w-4" />
-          Special Requests
+        <Button 
+          variant="outline" 
+          className="gap-2 bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-gray-700 hover:text-gray-800 transition-all duration-200 shadow-sm hover:shadow-md rounded-lg"
+        >
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-gray-600" />
+            <span className="font-medium">Special Requests</span>
+          </div>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-7xl max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ClipboardListIcon className="h-5 w-5" />
-            Special Request Tracking & Assignment
-          </DialogTitle>
+      <DialogContent className="max-w-7xl max-h-[90vh] bg-white rounded-xl shadow-2xl border-0 p-0 overflow-hidden flex flex-col">
+        <DialogHeader className="bg-gradient-to-r from-gray-700 to-gray-800 text-white p-6 rounded-t-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                <Users className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <DialogTitle className="text-2xl font-bold text-white mb-1">
+                  Special Request Tracking & Assignment
+                </DialogTitle>
+                <p className="text-gray-200 text-sm">Manage guest service requests and staff assignments efficiently</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="px-3 py-1 bg-white/20 rounded-full text-xs font-medium">
+                {stats.total} REQUESTS
+              </div>
+            </div>
+          </div>
         </DialogHeader>
 
-        <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="requests">Active Requests</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          </TabsList>
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6">
+            <Tabs defaultValue="dashboard" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 bg-gray-50 border border-gray-200 rounded-lg p-1 mb-6">
+              <TabsTrigger 
+                value="dashboard"
+                className="data-[state=active]:bg-white data-[state=active]:text-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
+              >
+                Dashboard
+              </TabsTrigger>
+              <TabsTrigger 
+                value="requests"
+                className="data-[state=active]:bg-white data-[state=active]:text-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
+              >
+                Active Requests
+              </TabsTrigger>
+              <TabsTrigger 
+                value="analytics"
+                className="data-[state=active]:bg-white data-[state=active]:text-gray-700 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
+              >
+                Analytics
+              </TabsTrigger>
+            </TabsList>
 
           <TabsContent value="dashboard" className="space-y-4">
             {/* Statistics Overview */}
@@ -622,6 +658,8 @@ export const SpecialRequestTracker: React.FC = () => {
             </div>
           </TabsContent>
         </Tabs>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

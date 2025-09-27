@@ -35,6 +35,8 @@ const DraggableReservation: React.FC<DraggableReservationProps> = ({
 }) => {
   const [isSelected, setIsSelected] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStarted, setDragStarted] = useState(false);
 
   // Sync with dragDropManager selection state
   useEffect(() => {
@@ -89,38 +91,71 @@ const DraggableReservation: React.FC<DraggableReservationProps> = ({
   };
 
   const handleDragStart = (e: React.DragEvent) => {
+    console.log('🚀🚀 DRAG START FROM SIDEBAR - Guest:', reservation.guestName);
+    console.log('🚀🚀 DRAG START - Full reservation data:', reservation);
+    console.log('🚀🚀 DRAG START - Reservation ID:', reservation.id);
+    console.log('🚀🚀 DRAG START - Assigned Room:', reservation.assignedRoom);
+    console.log('🚀🚀 DRAG START - Status:', reservation.status);
+    console.log('🚀🚀 DRAG START - Room Type:', reservation.roomType);
+    console.log('🚀🚀 DRAG START - Check-in:', reservation.checkIn);
+    console.log('🚀🚀 DRAG START - Check-out:', reservation.checkOut);
+
     if (isSelected || dragDropManager.getSelectionCount() > 0) {
+      console.log('🚀🚀 DRAG START - Multi-selection mode detected');
       // If this reservation is part of a selection, include all selected items
       if (!isSelected) {
+        console.log('🚀🚀 DRAG START - Adding to selection');
         dragDropManager.addToSelection(reservation.id);
         setIsSelected(true);
       }
+    } else {
+      console.log('🚀🚀 DRAG START - Single item drag');
     }
-    onDragStart(e, reservation);
+
+    if (onDragStart) {
+      console.log('🚀🚀 DRAG START - Calling onDragStart callback');
+      onDragStart(e, reservation);
+    } else {
+      console.error('❌❌ DRAG START - No onDragStart callback provided!');
+    }
+
+    setIsDragging(true);
+    setDragStarted(true);
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+    setDragStarted(false);
   };
 
   return (
     <div
       draggable
       onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
       onClick={handleClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={cn(
         'relative rounded-md border-2 border-dashed p-3 cursor-move group',
-        'hover:shadow-md transition-all duration-200 bg-white shadow-sm',
+        'hover:shadow-md transition-all duration-300 ease-out bg-white shadow-sm',
         // Selection states
         isSelected
           ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
           : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50',
         // Assignment colors
         !isSelected && getAssignmentColor(reservation.assignedRoom),
+        // Drag states
+        isDragging && 'opacity-50 scale-95 rotate-2 shadow-2xl ring-4 ring-blue-300',
+        dragStarted && 'animate-pulse',
         // Hover effects
-        isHovered && !isSelected && 'transform scale-[1.02]',
-        isSelected && 'transform scale-[1.01]',
+        isHovered && !isSelected && !isDragging && 'transform scale-[1.02] shadow-lg',
+        isSelected && !isDragging && 'transform scale-[1.01]',
         isCompact && 'p-2',
         // Multi-selection mode styling
-        selectionMode && 'hover:ring-1 hover:ring-blue-300'
+        selectionMode && 'hover:ring-1 hover:ring-blue-300',
+        // Smooth transitions for all states
+        'transform-gpu will-change-transform'
       )}
       title={
         selectionMode

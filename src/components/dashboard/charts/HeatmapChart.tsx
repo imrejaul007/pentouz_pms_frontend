@@ -29,8 +29,9 @@ export function HeatmapChart({
 }: HeatmapChartProps) {
   const statusTypes = [
     { status: 'occupied', label: 'Occupied', color: '#ef4444' },
-    { status: 'vacant_clean', label: 'Vacant Clean', color: '#10b981' },
-    { status: 'vacant_dirty', label: 'Vacant Dirty', color: '#f59e0b' },
+    { status: 'vacant', label: 'Available', color: '#10b981' },
+    { status: 'reserved', label: 'Reserved', color: '#8b5cf6' },
+    { status: 'dirty', label: 'Dirty / Cleaning', color: '#f59e0b' },
     { status: 'out_of_order', label: 'Out of Order', color: '#6b7280' },
     { status: 'maintenance', label: 'Maintenance', color: '#f97316' },
   ];
@@ -69,7 +70,7 @@ export function HeatmapChart({
                       width: `${roomWidth}px`,
                       height: '32px',
                       backgroundColor: color,
-                      color: room.status === 'vacant_clean' ? '#065f46' : '#ffffff',
+                      color: room.status === 'vacant' ? '#065f46' : '#ffffff',
                     }}
                     onClick={() => onRoomClick && onRoomClick(room)}
                     title={`Room ${room.roomNumber} - ${room.status.replace('_', ' ')}`}

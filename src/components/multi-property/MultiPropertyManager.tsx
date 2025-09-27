@@ -409,89 +409,116 @@ export const MultiPropertyManager: React.FC = () => {
   };
 
   const renderDashboard = () => (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+        <Card className="border-0 shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-blue-50 to-blue-100">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Properties</p>
-                <p className="text-2xl font-bold">{totalStats.properties}</p>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-blue-600">Total Properties</p>
+                <p className="text-3xl font-bold text-blue-900">{totalStats.properties}</p>
+                <p className="text-xs text-blue-500">Active properties</p>
               </div>
-              <Building2 className="h-8 w-8 text-blue-500" />
+              <div className="p-3 bg-blue-500 rounded-full">
+                <Building2 className="h-6 w-6 text-white" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-0 shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-green-50 to-green-100">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Rooms</p>
-                <p className="text-2xl font-bold">{totalStats.totalRooms}</p>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-green-600">Total Rooms</p>
+                <p className="text-3xl font-bold text-green-900">{totalStats.totalRooms}</p>
+                <p className="text-xs text-green-500">Available rooms</p>
               </div>
-              <Bed className="h-8 w-8 text-green-500" />
+              <div className="p-3 bg-green-500 rounded-full">
+                <Bed className="h-6 w-6 text-white" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-0 shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-emerald-50 to-emerald-100">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
-                <p className="text-2xl font-bold">₹{(totalStats.totalRevenue || 0).toLocaleString()}</p>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-emerald-600">Total Revenue</p>
+                <p className="text-3xl font-bold text-emerald-900">₹{(totalStats.totalRevenue || 0).toLocaleString()}</p>
+                <p className="text-xs text-emerald-500">This month</p>
               </div>
-              <IndianRupee className="h-8 w-8 text-emerald-500" />
+              <div className="p-3 bg-emerald-500 rounded-full">
+                <IndianRupee className="h-6 w-6 text-white" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-0 shadow-sm hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-purple-50 to-purple-100">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Avg Occupancy</p>
-                <p className="text-2xl font-bold">{totalStats.avgOccupancy.toFixed(1)}%</p>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-purple-600">Avg Occupancy</p>
+                <p className="text-3xl font-bold text-purple-900">{totalStats.avgOccupancy.toFixed(1)}%</p>
+                <p className="text-xs text-purple-500">Portfolio average</p>
               </div>
-              <TrendingUp className="h-8 w-8 text-purple-500" />
+              <div className="p-3 bg-purple-500 rounded-full">
+                <TrendingUp className="h-6 w-6 text-white" />
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Property Groups */}
-      <Card>
-        <CardHeader>
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
-            <CardTitle>Property Groups</CardTitle>
-            <Button onClick={() => setShowAddGroup(true)}>
+            <div>
+              <CardTitle className="text-xl font-semibold">Property Groups</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">Organize and manage your properties</p>
+            </div>
+            <Button onClick={() => setShowAddGroup(true)} className="bg-blue-600 hover:bg-blue-700">
               <Plus className="mr-2 h-4 w-4" />
               Add Group
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {propertyGroups.map(group => (
-              <div key={group.id} className="p-4 border rounded-lg cursor-pointer hover:bg-muted/50"
+              <div key={group.id} className="p-6 border border-gray-200 rounded-xl cursor-pointer hover:border-blue-300 hover:shadow-md transition-all duration-200 bg-white"
                    onClick={() => setSelectedGroup(group)}>
-                <div className="flex items-center justify-between">
+                <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-3">
-                      <h3 className="font-medium">{group.name}</h3>
-                      <Badge variant="secondary">{group.properties.length} properties</Badge>
+                    <div className="flex items-center space-x-3 mb-2">
+                      <h3 className="font-semibold text-lg text-gray-900">{group.name}</h3>
+                      <Badge variant="secondary" className="bg-blue-100 text-blue-700">{group.properties.length} properties</Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">{group.description}</p>
-                    <div className="flex items-center space-x-4 mt-2 text-sm">
-                      <span>Manager: {group.manager || 'Not assigned'}</span>
-                      <span>Budget: ₹{(group.budget || 0).toLocaleString()}</span>
+                    <p className="text-sm text-gray-600 mb-3">{group.description}</p>
+                    <div className="flex items-center space-x-6 text-sm text-gray-500">
+                      <div className="flex items-center">
+                        <User className="h-4 w-4 mr-1" />
+                        <span>{group.manager || 'Not assigned'}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <IndianRupee className="h-4 w-4 mr-1" />
+                        <span>₹{(group.budget || 0).toLocaleString()}</span>
+                      </div>
                     </div>
                   </div>
+                </div>
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <div>
+                    <div className="text-2xl font-bold text-gray-900">₹{(group.performance?.totalRevenue || 0).toLocaleString()}</div>
+                    <div className="text-sm text-gray-500">Total Revenue</div>
+                  </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold">₹{(group.performance?.totalRevenue || 0).toLocaleString()}</div>
-                    <div className="text-sm text-muted-foreground">Total Revenue</div>
+                    <div className="text-lg font-semibold text-green-600">{group.performance?.avgOccupancy || 0}%</div>
+                    <div className="text-sm text-gray-500">Avg Occupancy</div>
                   </div>
                 </div>
               </div>
@@ -501,50 +528,74 @@ export const MultiPropertyManager: React.FC = () => {
       </Card>
 
       {/* Top Performing Properties */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Top Performing Properties</CardTitle>
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-xl font-semibold">Top Performing Properties</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">Properties with highest RevPAR this month</p>
+            </div>
+            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              Top 3
+            </Badge>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {properties
               .sort((a, b) => (b.performance?.revpar || 0) - (a.performance?.revpar || 0))
               .slice(0, 3)
-              .map(property => {
+              .map((property, index) => {
                 const revparChange = getPerformanceChange(
                   property.performance?.revpar || 0,
                   property.performance?.lastMonth?.revpar || 0
                 );
+                const rankColors = ['bg-yellow-100 text-yellow-800', 'bg-gray-100 text-gray-800', 'bg-orange-100 text-orange-800'];
+                const rankIcons = ['🥇', '🥈', '🥉'];
+                
                 return (
-                  <div key={property.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div key={property.id} className="flex items-center justify-between p-6 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-sm transition-all duration-200 bg-white">
                     <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold">
-                        {property.name.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="font-medium">{property.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {property.location?.city || 'Unknown'}, {property.location?.country || 'Unknown'}
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${rankColors[index]}`}>
+                          {index + 1}
                         </div>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <Badge variant="outline">{property.type}</Badge>
+                        <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md">
+                          {property.name.charAt(0).toUpperCase()}
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <h3 className="font-semibold text-lg text-gray-900">{property.name}</h3>
+                          <Badge variant="outline" className="text-xs">{property.type}</Badge>
+                        </div>
+                        <div className="flex items-center space-x-4 text-sm text-gray-600 mb-2">
                           <div className="flex items-center">
-                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 mr-1" />
-                            <span className="text-xs">{property.rating}</span>
+                            <MapPin className="h-4 w-4 mr-1" />
+                            <span>{property.location?.city || 'Unknown'}, {property.location?.country || 'Unknown'}</span>
                           </div>
+                          <div className="flex items-center">
+                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 mr-1" />
+                            <span>{property.rating}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-4 text-xs text-gray-500">
+                          <span>{property.rooms?.total || 0} rooms</span>
+                          <span>{property.performance?.occupancyRate || 0}% occupancy</span>
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-lg font-bold">₹{(property.performance?.revpar || 0).toFixed(2)}</div>
-                      <div className="text-sm text-muted-foreground">RevPAR</div>
-                      <div className={`flex items-center text-sm ${
+                      <div className="text-2xl font-bold text-gray-900">₹{(property.performance?.revpar || 0).toFixed(0)}</div>
+                      <div className="text-sm text-gray-500 mb-1">RevPAR</div>
+                      <div className={`flex items-center justify-end text-sm font-medium ${
                         revparChange.isPositive ? 'text-green-600' : 'text-red-600'
                       }`}>
                         {revparChange.isPositive ? (
-                          <ArrowUpRight className="h-3 w-3 mr-1" />
+                          <ArrowUpRight className="h-4 w-4 mr-1" />
                         ) : (
-                          <ArrowDownRight className="h-3 w-3 mr-1" />
+                          <ArrowDownRight className="h-4 w-4 mr-1" />
                         )}
                         {revparChange.value}%
                       </div>
@@ -561,42 +612,47 @@ export const MultiPropertyManager: React.FC = () => {
   const renderProperties = () => (
     <div className="space-y-6">
       {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center space-x-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-6">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
+            <div className="relative flex-1 w-full lg:w-auto">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Search properties..."
+                placeholder="Search properties by name or location..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-                <SelectItem value="maintenance">Maintenance</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="hotel">Hotel</SelectItem>
-                <SelectItem value="resort">Resort</SelectItem>
-                <SelectItem value="aparthotel">Apart Hotel</SelectItem>
-                <SelectItem value="boutique">Boutique</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={() => setShowAddProperty(true)}>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 w-full lg:w-auto">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-40 h-11 border-gray-200">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-full sm:w-40 h-11 border-gray-200">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="hotel">Hotel</SelectItem>
+                  <SelectItem value="resort">Resort</SelectItem>
+                  <SelectItem value="aparthotel">Apart Hotel</SelectItem>
+                  <SelectItem value="boutique">Boutique</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button 
+              onClick={() => setShowAddProperty(true)} 
+              className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 h-11"
+            >
               <Plus className="mr-2 h-4 w-4" />
               Add Property
             </Button>
@@ -620,7 +676,8 @@ export const MultiPropertyManager: React.FC = () => {
         searchTerm={searchTerm}
         statusFilter={statusFilter}
         typeFilter={typeFilter}
-        containerHeight={700}
+        itemHeight={420}
+        containerHeight={800}
       />
       <div style={{ display: 'none' }} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredProperties.map(property => {
@@ -877,14 +934,17 @@ export const MultiPropertyManager: React.FC = () => {
   );
 
   const renderGroups = () => (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Group Management Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
         <div>
-          <h3 className="text-lg font-semibold">Property Groups</h3>
-          <p className="text-sm text-muted-foreground">Manage and organize properties into groups</p>
+          <h2 className="text-2xl font-bold text-gray-900">Property Groups</h2>
+          <p className="text-gray-600 mt-1">Organize and manage your properties into groups for better control</p>
         </div>
-        <Button onClick={() => setShowAddGroup(true)}>
+        <Button 
+          onClick={() => setShowAddGroup(true)}
+          className="bg-blue-600 hover:bg-blue-700"
+        >
           <Plus className="mr-2 h-4 w-4" />
           Add Group
         </Button>
@@ -893,20 +953,27 @@ export const MultiPropertyManager: React.FC = () => {
       {/* Property Groups Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {propertyGroups.map(group => (
-          <Card key={group._id} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-lg">{group.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground capitalize">{group.groupType || 'Standard'}</p>
+          <Card key={group._id} className="border-0 shadow-sm hover:shadow-lg transition-all duration-200 bg-white">
+            <CardHeader className="pb-4">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <CardTitle className="text-lg font-semibold text-gray-900">{group.name}</CardTitle>
+                    <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                      {group.groupType || 'Standard'}
+                    </Badge>
+                  </div>
+                  {group.description && (
+                    <p className="text-sm text-gray-600 line-clamp-2">{group.description}</p>
+                  )}
                 </div>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem onClick={() => {
                       setSelectedGroup(group);
                       setSelectedGroupForEdit(group);
@@ -921,7 +988,7 @@ export const MultiPropertyManager: React.FC = () => {
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
-                      className="text-red-600"
+                      className="text-red-600 focus:text-red-600"
                       onClick={() => handleDeleteGroup(group._id)}
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
@@ -931,83 +998,77 @@ export const MultiPropertyManager: React.FC = () => {
                 </DropdownMenu>
               </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {/* Group Stats */}
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-xl font-bold text-blue-600">{group.properties?.length || 0}</div>
-                    <div className="text-xs text-muted-foreground">Properties</div>
-                  </div>
-                  <div>
-                    <div className="text-xl font-bold text-green-600">
-                      {group.performance.avgOccupancy ? `${group.performance.avgOccupancy}%` : 'N/A'}
-                    </div>
-                    <div className="text-xs text-muted-foreground">Avg Occupancy</div>
-                  </div>
-                  <div>
-                    <div className="text-xl font-bold text-purple-600">
-                      ₹{(group.performance?.totalRevenue || 0).toLocaleString()}
-                    </div>
-                    <div className="text-xs text-muted-foreground">Revenue</div>
-                  </div>
+            <CardContent className="space-y-6">
+              {/* Group Stats */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center p-3 bg-blue-50 rounded-lg">
+                  <div className="text-2xl font-bold text-blue-600">{group.properties?.length || 0}</div>
+                  <div className="text-xs text-blue-600 font-medium">Properties</div>
                 </div>
+                <div className="text-center p-3 bg-green-50 rounded-lg">
+                  <div className="text-2xl font-bold text-green-600">
+                    {group.performance?.avgOccupancy ? `${group.performance.avgOccupancy}%` : 'N/A'}
+                  </div>
+                  <div className="text-xs text-green-600 font-medium">Avg Occupancy</div>
+                </div>
+                <div className="text-center p-3 bg-purple-50 rounded-lg">
+                  <div className="text-2xl font-bold text-purple-600">
+                    ₹{(group.performance?.totalRevenue || 0).toLocaleString()}
+                  </div>
+                  <div className="text-xs text-purple-600 font-medium">Revenue</div>
+                </div>
+              </div>
 
-                {/* Group Description */}
-                {group.description && (
-                  <p className="text-sm text-muted-foreground">{group.description}</p>
-                )}
-
-                {/* Group Status */}
-                <div className="flex items-center justify-between">
-                  <Badge variant={group.isActive ? "default" : "secondary"}>
+              {/* Group Status and Info */}
+              <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                <div className="flex items-center space-x-2">
+                  <Badge variant={group.isActive ? "default" : "secondary"} className={group.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
                     {group.isActive ? "Active" : "Inactive"}
                   </Badge>
-                  <div className="text-xs text-muted-foreground">
-                    Created {new Date(group.createdAt).toLocaleDateString()}
-                  </div>
                 </div>
+                <div className="text-xs text-gray-500">
+                  Created {new Date(group.createdAt).toLocaleDateString()}
+                </div>
+              </div>
 
-                {/* Quick Actions */}
-                <div className="space-y-2">
-                  <div className="flex space-x-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex-1"
-                      onClick={() => {
-                        setSelectedGroupForDashboard(group);
-                        setShowGroupDashboard(true);
-                      }}
-                    >
-                      <BarChart3 className="mr-1 h-3 w-3" />
-                      Dashboard
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex-1"
-                      onClick={() => {
-                        // Navigate to group settings
-                        setSelectedGroup(group);
-                        setSelectedGroupForEdit(group);
-                        setShowEditGroup(true);
-                      }}
-                    >
-                      <Settings className="mr-1 h-3 w-3" />
-                      Settings
-                    </Button>
-                  </div>
+              {/* Quick Actions */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
                   <Button 
-                    variant="default"
+                    variant="outline" 
                     size="sm" 
-                    className="w-full"
-                    onClick={() => openPropertyAssignmentModal(group)}
+                    className="h-9 text-xs"
+                    onClick={() => {
+                      setSelectedGroupForDashboard(group);
+                      setShowGroupDashboard(true);
+                    }}
                   >
-                    <Building2 className="mr-1 h-3 w-3" />
-                    Manage Properties
+                    <BarChart3 className="mr-1 h-3 w-3" />
+                    Dashboard
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-9 text-xs"
+                    onClick={() => {
+                      setSelectedGroup(group);
+                      setSelectedGroupForEdit(group);
+                      setShowEditGroup(true);
+                    }}
+                  >
+                    <Settings className="mr-1 h-3 w-3" />
+                    Settings
                   </Button>
                 </div>
+                <Button 
+                  variant="default"
+                  size="sm" 
+                  className="w-full h-9 bg-blue-600 hover:bg-blue-700"
+                  onClick={() => openPropertyAssignmentModal(group)}
+                >
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Manage Properties
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -1016,28 +1077,35 @@ export const MultiPropertyManager: React.FC = () => {
 
       {/* Pagination */}
       {pagination.totalPages > 1 && (
-        <Pagination
-          currentPage={pagination.currentPage}
-          totalPages={pagination.totalPages}
-          totalItems={pagination.totalItems}
-          itemsPerPage={pagination.itemsPerPage}
-          onPageChange={handlePageChange}
-          onItemsPerPageChange={handleItemsPerPageChange}
-          isLoading={isLoading}
-        />
+        <div className="flex justify-center mt-8">
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            itemsPerPage={pagination.itemsPerPage}
+            onPageChange={handlePageChange}
+            onItemsPerPageChange={handleItemsPerPageChange}
+            isLoading={isLoading}
+          />
+        </div>
       )}
 
       {/* Empty State */}
       {propertyGroups.length === 0 && !isLoading && (
-        <Card>
-          <CardContent className="py-12">
+        <Card className="border-0 shadow-sm">
+          <CardContent className="py-16">
             <div className="text-center">
-              <Users className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-semibold">No property groups yet</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Get started by creating your first property group to organize your properties.
+              <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+                <Users className="h-12 w-12 text-gray-400" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">No property groups yet</h3>
+              <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                Get started by creating your first property group to organize and manage your properties more effectively.
               </p>
-              <Button className="mt-4" onClick={() => setShowAddGroup(true)}>
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700" 
+                onClick={() => setShowAddGroup(true)}
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Create First Group
               </Button>
@@ -1058,10 +1126,17 @@ export const MultiPropertyManager: React.FC = () => {
   // Show loading state
   if (loading) {
     return (
-      <div className="space-y-6 p-6">
-        <div className="flex items-center justify-center h-64">
-          <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
-          <span className="ml-2 text-gray-600">Loading dashboard...</span>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center">
+              <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                <RefreshCw className="h-8 w-8 animate-spin text-blue-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading dashboard...</h3>
+              <p className="text-gray-600">Please wait while we fetch your property data</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -1070,76 +1145,99 @@ export const MultiPropertyManager: React.FC = () => {
   // Show error state
   if (error && propertyGroups.length === 0) {
     return (
-      <div className="space-y-6 p-6">
-        <div className="flex items-center justify-center h-64 flex-col">
-          <AlertCircle className="h-8 w-8 text-red-600 mb-4" />
-          <span className="text-gray-600 text-center">
-            {error}
-          </span>
-          <Button 
-            onClick={() => {
-              refetchPropertyGroups();
-              refetchProperties();
-            }}
-            className="mt-4"
-          >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Try Again
-          </Button>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center">
+              <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <AlertCircle className="h-8 w-8 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Something went wrong</h3>
+              <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                {error}
+              </p>
+              <Button 
+                onClick={() => {
+                  refetchPropertyGroups();
+                  refetchProperties();
+                }}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Try Again
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Multi-Property Manager</h2>
-        <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => {
-            refetchPropertyGroups();
-            refetchProperties();
-          }}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh Data
-          </Button>
-          <Button variant="outline" onClick={() => setShowExportModal(true)}>
-            <Download className="mr-2 h-4 w-4" />
-            Export Data
-          </Button>
-        </div>
-      </div>
-
-      {/* Navigation Tabs */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="flex space-x-0 border-b">
-            {tabs.map(tab => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveView(tab.id as any)}
-                  className={`flex items-center px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                    activeView === tab.id
-                      ? 'border-blue-500 text-blue-600 bg-blue-50'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300'
-                  }`}
-                >
-                  <Icon className="mr-2 h-4 w-4" />
-                  {tab.name}
-                </button>
-              );
-            })}
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900">Multi-Property Manager</h1>
+              <p className="text-lg text-gray-600 mt-2">Manage and monitor your property portfolio</p>
+            </div>
+            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  refetchPropertyGroups();
+                  refetchProperties();
+                }}
+                className="border-gray-300 hover:bg-gray-50"
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Refresh Data
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowExportModal(true)}
+                className="border-gray-300 hover:bg-gray-50"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export Data
+              </Button>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Content */}
-      {activeView === 'dashboard' && renderDashboard()}
-      {activeView === 'properties' && renderProperties()}
-      {activeView === 'groups' && renderGroups()}
-      {activeView === 'analytics' && renderAnalytics()}
+        {/* Navigation Tabs */}
+        <Card className="border-0 shadow-sm mb-8">
+          <CardContent className="p-0">
+            <div className="flex flex-wrap border-b border-gray-200">
+              {tabs.map(tab => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveView(tab.id as any)}
+                    className={`flex items-center px-6 py-4 text-sm font-medium border-b-2 transition-all duration-200 ${
+                      activeView === tab.id
+                        ? 'border-blue-500 text-blue-600 bg-blue-50'
+                        : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon className="mr-2 h-4 w-4" />
+                    {tab.name}
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Content */}
+        {activeView === 'dashboard' && renderDashboard()}
+        {activeView === 'properties' && renderProperties()}
+        {activeView === 'groups' && renderGroups()}
+        {activeView === 'analytics' && renderAnalytics()}
+      </div>
 
       {/* Property Details Modal */}
       {selectedProperty && (

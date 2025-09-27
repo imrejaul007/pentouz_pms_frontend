@@ -32,17 +32,17 @@ export default function StaffAlertDropdown({ isOpen, onToggle }: StaffAlertDropd
   const queryClient = useQueryClient();
   const { connectionState, connect, disconnect, on, off } = useRealTime();
 
-  // Real-time connection setup
+  // Real-time connection setup - FIXED: Don't disconnect singleton service
   useEffect(() => {
     if (isOpen) {
-      connect();
+      // Only connect if not already connected - singleton handles this
+      connect().catch(error => {
+        console.error('[StaffAlertDropdown] WebSocket connection failed:', error);
+      });
     }
-    return () => {
-      if (!isOpen) {
-        disconnect();
-      }
-    };
-  }, [isOpen, connect, disconnect]);
+    // CRITICAL FIX: Never disconnect singleton service from dropdown component
+    // Other components may be using the same connection
+  }, [isOpen, connect]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

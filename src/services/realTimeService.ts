@@ -66,6 +66,7 @@ class RealTimeService extends EventEmitter {
   private subscriptions = new Set<string>();
   private messageQueue: any[] = [];
   private disabledLogShown = false;
+  private connectionPromise: Promise<void> | null = null; // Singleton connection promise
 
   constructor(config: RealTimeConfig = {}) {
     super();
@@ -75,7 +76,7 @@ class RealTimeService extends EventEmitter {
       reconnectInterval: config.reconnectInterval || 3000,
       maxReconnectAttempts: config.maxReconnectAttempts || 10,
       heartbeatInterval: config.heartbeatInterval || 30000,
-      debug: config.debug !== undefined ? config.debug : (import.meta.env?.DEV || false),
+      debug: config.debug !== undefined ? config.debug : true, // Enable debug logging
     };
   }
 
@@ -95,14 +96,22 @@ class RealTimeService extends EventEmitter {
   }
 
   public connect(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      // TEMPORARILY DISABLE WEBSOCKET CONNECTIONS TO FIX CONNECTION LOOPS
-      if (!this.disabledLogShown) {
-        this.log('WebSocket connections temporarily disabled for performance optimization');
-        this.disabledLogShown = true;
-      }
-      resolve();
-      return;
+    // Return existing connection promise if one is in progress
+    if (this.connectionPromise) {
+      this.log('Using existing connection promise');
+      return this.connectionPromise;
+    }
+
+    // If already connected, resolve immediately
+    if (this.isConnected) {
+      this.log('Already connected, resolving immediately');
+      return Promise.resolve();
+    }
+
+    // Create new connection promise
+    this.connectionPromise = new Promise((resolve, reject) => {
+      // RE-ENABLED WEBSOCKET CONNECTIONS WITH SINGLETON PATTERN
+      // WebSocket connections re-enabled for hotel management notifications with proper connection management
 
       this.log('Attempting to connect to WebSocket server', {
         url: this.config.url,
@@ -110,9 +119,9 @@ class RealTimeService extends EventEmitter {
         isConnecting: this.isConnecting
       });
 
-      if (this.isConnected || this.isConnecting) {
-        this.log('Already connected or connecting, resolving immediately');
-        resolve();
+      if (this.isConnecting) {
+        this.log('Connection already in progress, rejecting duplicate attempt');
+        reject(new Error('Connection already in progress'));
         return;
       }
 
@@ -139,19 +148,19 @@ class RealTimeService extends EventEmitter {
             token // Also send in query for compatibility
           },
           autoConnect: false,
-          reconnection: true,
-          reconnectionAttempts: this.config.maxReconnectAttempts,
-          reconnectionDelay: this.config.reconnectInterval,
-          reconnectionDelayMax: 10000,
-          timeout: 15000,
-          transports: ['websocket', 'polling'],
-          forceNew: false,
-          withCredentials: true
+          reconnection: false, // Disable automatic reconnection to prevent loops
+          timeout: 30000, // Increase timeout
+          transports: ['polling'], // Use only polling transport to avoid WebSocket issues
+          forceNew: true, // Force new connection to avoid conflicts
+          withCredentials: true,
+          upgrade: true // Allow upgrade to WebSocket after initial connection
         });
 
         // Connection event handlers
         this.socket.on('connect', () => {
+          this.log('Socket connected successfully');
           this.handleConnect();
+          this.connectionPromise = null; // Clear connection promise on success
           resolve();
         });
 
@@ -180,11 +189,13 @@ class RealTimeService extends EventEmitter {
           this.handleError(error);
           if (this.isConnecting) {
             this.isConnecting = false;
+            this.connectionPromise = null; // Clear connection promise on error
             reject(new Error(`Connection failed: ${error.message}`));
           }
         });
 
         this.socket.on('disconnect', (reason) => {
+          this.log('Socket disconnection detected:', { reason, wasConnected: this.isConnected });
           this.handleDisconnect(reason);
         });
 
@@ -209,23 +220,28 @@ class RealTimeService extends EventEmitter {
         // Connection timeout
         setTimeout(() => {
           if (this.isConnecting && !this.isConnected) {
-            this.log('Socket connection timeout after 15 seconds');
+            this.log('Socket connection timeout after 30 seconds');
+            this.connectionPromise = null; // Clear connection promise on timeout
             reject(new Error('Socket connection timeout'));
             this.disconnect();
           }
-        }, 15000);
+        }, 30000);
 
       } catch (error) {
         this.isConnecting = false;
+        this.connectionPromise = null; // Clear connection promise on exception
         reject(error);
       }
     });
+
+    return this.connectionPromise;
   }
 
   public disconnect(): void {
     this.shouldReconnect = false;
     this.isConnecting = false;
-    
+    this.connectionPromise = null; // Clear connection promise on disconnect
+
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -286,7 +302,32 @@ class RealTimeService extends EventEmitter {
     this.log('Socket.IO disconnected:', reason);
     this.emit('disconnected', { reason });
 
-    // Socket.IO handles reconnection automatically
+    // Custom reconnection logic since automatic reconnection is disabled
+    if (this.shouldReconnect && reason !== 'io client disconnect') {
+      this.attemptReconnection();
+    }
+  }
+
+  private attemptReconnection(): void {
+    if (this.reconnectAttempts >= this.config.maxReconnectAttempts) {
+      this.log('Max reconnection attempts reached');
+      this.emit('maxReconnectAttemptsReached');
+      return;
+    }
+
+    this.reconnectAttempts++;
+    this.log(`Attempting reconnection ${this.reconnectAttempts}/${this.config.maxReconnectAttempts}`);
+    this.emit('reconnecting', this.reconnectAttempts);
+
+    this.reconnectTimer = setTimeout(() => {
+      if (this.shouldReconnect) {
+        this.connect().catch(error => {
+          this.log('Reconnection failed:', error);
+          // Try again
+          this.attemptReconnection();
+        });
+      }
+    }, Math.min(this.config.reconnectInterval * Math.pow(1.5, this.reconnectAttempts - 1), 30000));
   }
 
   private handleRealTimeEvent(eventData: RealTimeEvent): void {
@@ -358,9 +399,7 @@ class RealTimeService extends EventEmitter {
   }
 
   public getConnectionState(): 'connected' | 'connecting' | 'disconnected' {
-    // Always return disconnected when WebSocket is disabled
-    return 'disconnected';
-
+    // Return actual connection state now that WebSocket is re-enabled
     if (this.isConnected) return 'connected';
     if (this.isConnecting) return 'connecting';
     return 'disconnected';

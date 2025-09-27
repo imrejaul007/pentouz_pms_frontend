@@ -25,6 +25,7 @@ import { useNavigate } from 'react-router-dom';
 import { InventoryDashboardWidget } from '../../components/admin/InventoryDashboardWidget';
 import { InventoryNotifications } from '../../components/admin/InventoryNotifications';
 import { SupplyRequestDashboardWidget } from '../../components/admin/SupplyRequestDashboardWidget';
+import UpcomingArrivalsWidget from '../../components/admin/UpcomingArrivalsWidget';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -147,7 +148,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 max-w-full lg:max-w-7xl mx-auto min-w-0">
+    <div className="space-y-4 sm:space-y-6 min-w-0">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -241,7 +242,7 @@ export default function AdminDashboard() {
         >
           <MetricCard
             title="Occupancy Rate"
-            value={kpis.data?.data?.averageOccupancy || 0}
+            value={occupancyQuery.data?.data?.overallMetrics?.occupancyRate || 0}
             type="percentage"
             trend={{
               value: kpis.data?.data?.occupancyGrowth || 0,
@@ -414,13 +415,10 @@ export default function AdminDashboard() {
                 }
                 floors[floor].push({
                   roomNumber: room.roomNumber,
-                  status: room.status === 'occupied' ? 'occupied' : 
-                         room.status === 'vacant' ? 'vacant_clean' :
-                         room.status === 'dirty' ? 'vacant_dirty' :
-                         room.status === 'maintenance' ? 'maintenance' :
-                         room.status === 'out_of_order' ? 'out_of_order' : 'vacant_clean',
-                  color: room.status === 'occupied' ? '#ef4444' : 
+                  status: room.status,
+                  color: room.status === 'occupied' ? '#ef4444' :
                          room.status === 'vacant' ? '#10b981' :
+                         room.status === 'reserved' ? '#8b5cf6' :
                          room.status === 'dirty' ? '#f59e0b' :
                          room.status === 'maintenance' ? '#f97316' :
                          room.status === 'out_of_order' ? '#6b7280' : '#10b981'
@@ -470,6 +468,11 @@ export default function AdminDashboard() {
         hotelId={selectedHotelId}
         onNavigate={(path) => navigate(path)}
       />
+
+      {/* Upcoming Arrivals Widget */}
+      <div className="mb-8">
+        <UpcomingArrivalsWidget />
+      </div>
 
       {/* Inventory Notifications Section */}
       <div className="mb-8">

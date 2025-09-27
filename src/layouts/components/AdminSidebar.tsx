@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { 
-  Home, 
-  Bed, 
-  Calendar, 
-  Users, 
-  Package, 
-  BarChart3, 
+import {
+  Home,
+  Bed,
+  Calendar,
+  Users,
+  Package,
+  BarChart3,
   Wifi,
   ClipboardList,
   Globe,
@@ -39,7 +39,10 @@ import {
   ShoppingBag,
   MessageSquare,
   CheckSquare,
-  Receipt
+  Receipt,
+  Plane,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 const navigation = [
@@ -50,8 +53,12 @@ const navigation = [
   { name: 'Room Types', href: '/admin/room-types', icon: Layers },
   { name: 'Room Type Allotments', href: '/admin/room-allotments', icon: Target },
   { name: 'Bookings', href: '/admin/bookings', icon: Calendar },
+  { name: 'Upcoming Arrivals', href: '/admin/upcoming-bookings', icon: CalendarDays },
   { name: 'Corporate', href: '/admin/corporate', icon: Users },
+  { name: 'Travel Agents', href: '/admin/travel-dashboard', icon: Plane },
   { name: 'Staff Management', href: '/admin/staff', icon: UserCheck },
+  { name: 'Document Verification', href: '/admin/documents', icon: FileText },
+  { name: 'Document Analytics', href: '/admin/documents/analytics', icon: BarChart3 },
 { name: 'Financial (INR)', href: '/admin/financial', icon: IndianRupee },
   { name: 'Billing & Payments', href: '/admin/billing', icon: CreditCard },
   { name: 'POS System', href: '/admin/pos', icon: ShoppingCart },
@@ -89,10 +96,12 @@ const navigation = [
 
 interface AdminSidebarProps {
   isOpen?: boolean;
+  isCollapsed?: boolean;
   onClose?: () => void;
+  onToggle?: () => void;
 }
 
-export default function AdminSidebar({ isOpen = true, onClose }: AdminSidebarProps) {
+export default function AdminSidebar({ isOpen = true, isCollapsed = false, onClose, onToggle }: AdminSidebarProps) {
   return (
     <>
       {/* Mobile overlay */}
@@ -105,11 +114,13 @@ export default function AdminSidebar({ isOpen = true, onClose }: AdminSidebarPro
       
       {/* Sidebar */}
       <aside className={`
-        fixed lg:relative inset-y-0 left-0 z-50 w-64 
-        bg-white shadow-lg lg:shadow-sm border-r border-gray-200 
-        transform transition-transform duration-300 ease-in-out
+        fixed lg:relative inset-y-0 left-0 z-50
+        bg-white shadow-lg lg:shadow-sm border-r border-gray-200
+        transform transition-all duration-300 ease-in-out
         lg:translate-x-0 lg:min-h-full
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        ${isCollapsed ? 'lg:w-16' : 'lg:w-64'}
+        w-64
       `}>
         {/* Mobile close button */}
         <div className="lg:hidden flex items-center justify-between p-4 border-b">
@@ -122,7 +133,26 @@ export default function AdminSidebar({ isOpen = true, onClose }: AdminSidebarPro
           </button>
         </div>
 
-        <nav className="p-4 lg:p-6 h-full overflow-y-auto scrollbar-custom">
+        {/* Desktop toggle button */}
+        <div className="hidden lg:block sticky top-0 bg-white border-b border-gray-200 z-10">
+          <button
+            onClick={onToggle}
+            className={`w-full p-3 text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors ${
+              isCollapsed ? 'flex justify-center' : 'flex justify-end'
+            }`}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isCollapsed ? (
+              <ChevronRight className="h-5 w-5" />
+            ) : (
+              <ChevronLeft className="h-5 w-5" />
+            )}
+          </button>
+        </div>
+
+        <nav className={`h-full overflow-y-auto scrollbar-custom ${
+          isCollapsed ? 'p-2' : 'p-4 lg:p-6'
+        }`}>
           <ul className="space-y-1 lg:space-y-2">
             {navigation.map((item) => (
               <li key={item.name}>
@@ -130,15 +160,28 @@ export default function AdminSidebar({ isOpen = true, onClose }: AdminSidebarPro
                   to={item.href}
                   onClick={onClose} // Close mobile menu when navigating
                   className={({ isActive }) =>
-                    `flex items-center space-x-3 px-3 lg:px-4 py-2 lg:py-3 rounded-lg text-sm font-medium transition-colors ${
+                    `flex items-center rounded-lg text-sm font-medium transition-colors group relative ${
+                      isCollapsed
+                        ? 'justify-center px-3 py-3'
+                        : 'space-x-3 px-3 lg:px-4 py-2 lg:py-3'
+                    } ${
                       isActive
                         ? 'bg-blue-50 text-blue-700'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`
                   }
+                  title={isCollapsed ? item.name : ''}
                 >
                   <item.icon className="h-4 w-4 lg:h-5 lg:w-5 flex-shrink-0" />
-                  <span className="truncate">{item.name}</span>
+                  {!isCollapsed && <span className="truncate">{item.name}</span>}
+
+                  {/* Tooltip for collapsed mode */}
+                  {isCollapsed && (
+                    <div className="hidden lg:group-hover:block absolute left-full ml-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg whitespace-nowrap z-50 shadow-lg">
+                      {item.name}
+                      <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1 w-2 h-2 bg-gray-900 rotate-45"></div>
+                    </div>
+                  )}
                 </NavLink>
               </li>
             ))}

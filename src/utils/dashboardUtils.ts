@@ -168,8 +168,9 @@ export const getStatusColor = (status: string): string => {
     
     // Room statuses
     occupied: '#ef4444',
-    vacant_clean: '#10b981',
-    vacant_dirty: '#f59e0b',
+    vacant: '#10b981',
+    reserved: '#8b5cf6',
+    dirty: '#f59e0b',
     out_of_order: '#6b7280',
     maintenance: '#f97316',
   };
@@ -250,9 +251,10 @@ export const getRoomStatusPriority = (status: string): number => {
   const priorities: Record<string, number> = {
     out_of_order: 1,
     maintenance: 2,
-    vacant_dirty: 3,
-    vacant_clean: 4,
-    occupied: 5,
+    dirty: 3,
+    reserved: 4,
+    vacant: 5,
+    occupied: 6,
   };
   return priorities[status] || 6;
 };

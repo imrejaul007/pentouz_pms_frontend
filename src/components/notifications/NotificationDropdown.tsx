@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  Bell, 
-  Check, 
-  Eye, 
+import {
+  Bell,
+  Check,
+  Eye,
   MoreHorizontal,
   Settings,
   X,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { notificationService, Notification } from '../../services/notificationService';
 import { useRealTime } from '../../services/realTimeService';
+import { useAuth } from '../../context/AuthContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '../LoadingSpinner';
@@ -27,18 +28,19 @@ export default function NotificationDropdown({ isOpen, onToggle }: NotificationD
   const dropdownRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
   const { connectionState, connect, disconnect, on, off } = useRealTime();
+  const { user } = useAuth();
 
-  // Real-time connection setup
+  // Real-time connection setup - FIXED: Don't disconnect singleton service
   useEffect(() => {
     if (isOpen) {
-      connect();
+      // Only connect if not already connected - singleton handles this
+      connect().catch(error => {
+        console.error('[NotificationDropdown] WebSocket connection failed:', error);
+      });
     }
-    return () => {
-      if (!isOpen) {
-        disconnect();
-      }
-    };
-  }, [isOpen, connect, disconnect]);
+    // CRITICAL FIX: Never disconnect singleton service from dropdown component
+    // Other components may be using the same connection
+  }, [isOpen, connect]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -141,7 +143,27 @@ export default function NotificationDropdown({ isOpen, onToggle }: NotificationD
   };
 
   const handleViewAll = () => {
-    window.location.href = '/guest/notifications';
+    let notificationRoute = '/guest/notifications'; // Default fallback
+
+    if (user) {
+      switch (user.role) {
+        case 'admin':
+          notificationRoute = '/admin/notifications';
+          break;
+        case 'staff':
+          notificationRoute = '/staff/notifications';
+          break;
+        case 'travel_agent':
+          notificationRoute = '/travel-agent/notifications';
+          break;
+        case 'guest':
+        default:
+          notificationRoute = '/guest/notifications';
+          break;
+      }
+    }
+
+    window.location.href = notificationRoute;
     onToggle();
   };
 
@@ -167,16 +189,27 @@ export default function NotificationDropdown({ isOpen, onToggle }: NotificationD
     return `${Math.floor(diffInMinutes / 1440)}d ago`;
   };
 
-  if (!isOpen) {
-    return null;
-  }
-
   return (
     <div className="relative">
-      <div 
-        ref={dropdownRef}
-        className="absolute right-0 top-2 z-50 w-80 sm:w-96 bg-white rounded-lg shadow-xl border border-gray-200 max-h-96 overflow-hidden"
+      {/* Notification Bell Trigger */}
+      <button
+        onClick={onToggle}
+        className="p-2 rounded-md text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 relative"
       >
+        <Bell className="h-5 w-5" />
+        {unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center min-w-[20px]">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {/* Dropdown Panel */}
+      {isOpen && (
+        <div
+          ref={dropdownRef}
+          className="absolute right-0 top-2 z-50 w-80 sm:w-96 bg-white rounded-lg shadow-xl border border-gray-200 max-h-96 overflow-hidden"
+        >
         {/* Header */}
         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -290,7 +323,8 @@ export default function NotificationDropdown({ isOpen, onToggle }: NotificationD
             <ChevronRight className="h-3 w-3 ml-1" />
           </Button>
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

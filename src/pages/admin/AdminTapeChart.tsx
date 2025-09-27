@@ -2,16 +2,20 @@ import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  BarChart3, 
-  Bed, 
-  Building2, 
-  Calendar, 
-  Settings, 
+import { Button } from '@/components/ui/button';
+import {
+  BarChart3,
+  Bed,
+  Building2,
+  Calendar,
+  Settings,
   Users,
   AlertCircle,
   Activity,
-  TrendingUp
+  TrendingUp,
+  ChevronUp,
+  ChevronDown,
+  Menu
 } from 'lucide-react';
 import TapeChartView from '../../components/tapechart/TapeChartView';
 import RoomBlocks from '../../components/tapechart/RoomBlocks';
@@ -21,7 +25,8 @@ import TapeChartDashboard from '../../components/tapechart/TapeChartDashboard';
 import { WaitingListManager } from '../../components/reservations/WaitingListManager';
 
 const AdminTapeChart: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('tapechart');
+  const [isNavigationCollapsed, setIsNavigationCollapsed] = useState(true);
 
   const tabConfig = [
     {
@@ -82,35 +87,80 @@ const AdminTapeChart: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
+      {/* Compact Header */}
       <div className="bg-white border-b shadow-sm">
-        <div className="px-4 lg:px-6 py-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Tape Chart Management</h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Professional hotel room management dashboard
-              </p>
+        <div className="px-4 lg:px-6 py-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-lg lg:text-xl font-bold text-gray-900">Tape Chart Management</h1>
+              </div>
+
+              {/* Navigation Toggle Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsNavigationCollapsed(!isNavigationCollapsed)}
+                className="flex items-center gap-2 text-xs"
+                title={isNavigationCollapsed ? 'Show navigation tabs' : 'Hide navigation tabs'}
+              >
+                <Menu className="w-4 h-4" />
+                {isNavigationCollapsed ? (
+                  <>
+                    <ChevronDown className="w-3 h-3" />
+                    <span>Show Tabs</span>
+                  </>
+                ) : (
+                  <>
+                    <ChevronUp className="w-3 h-3" />
+                    <span>Hide Tabs</span>
+                  </>
+                )}
+              </Button>
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Activity className="w-4 h-4" />
-              <span>Live Updates</span>
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+
+            <div className="flex items-center gap-4">
+              {/* Compact current tab indicator when collapsed */}
+              {isNavigationCollapsed && (
+                <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 rounded-md border border-blue-200">
+                  {(() => {
+                    const currentTab = tabConfig.find(tab => tab.value === activeTab);
+                    const Icon = currentTab?.icon || Bed;
+                    return (
+                      <>
+                        <Icon className="w-4 h-4 text-blue-600" />
+                        <span className="text-sm font-medium text-blue-800">{currentTab?.label}</span>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Activity className="w-4 h-4" />
+                <span>Live Updates</span>
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        {/* Enhanced Tab Navigation */}
-        <div className="bg-white border-b shadow-sm">
-          <div className="px-4 lg:px-6 py-4">
+        {/* Collapsible Tab Navigation */}
+        <div
+          className={`
+            bg-white border-b shadow-sm transition-all duration-300 ease-in-out overflow-hidden
+            ${isNavigationCollapsed ? 'max-h-0 border-b-0' : 'max-h-[200px]'}
+          `}
+        >
+          <div className="px-4 lg:px-6 py-2">
             {/* Mobile responsive tabs with horizontal scroll */}
             <div className="flex overflow-x-auto scrollbar-hide gap-2 md:grid md:grid-cols-6 md:gap-0">
               {tabConfig.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.value;
-                
+
                 return (
                   <TabsTrigger
                     key={tab.value}
@@ -120,8 +170,8 @@ const AdminTapeChart: React.FC = () => {
                       transition-all duration-300 ease-in-out rounded-md border-2 border-transparent
                       min-w-[120px] md:min-w-0 whitespace-nowrap
                       hover:bg-gray-100 hover:shadow-md
-                      ${isActive 
-                        ? '!bg-blue-100 !text-blue-800 border-blue-200 shadow-lg transform scale-105 font-semibold' 
+                      ${isActive
+                        ? '!bg-blue-100 !text-blue-800 border-blue-200 shadow-lg transform scale-105 font-semibold'
                         : '!text-gray-800 hover:!text-gray-900 !bg-white hover:!bg-gray-50 border-gray-200'
                       }
                     `}
@@ -129,8 +179,8 @@ const AdminTapeChart: React.FC = () => {
                     <div className="flex items-center justify-center mb-1 relative">
                       <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${isActive ? '!text-blue-800' : '!text-gray-600'}`} />
                       {tab.notifications > 0 && (
-                        <Badge 
-                          variant="destructive" 
+                        <Badge
+                          variant="destructive"
                           className="absolute -top-2 -right-2 h-5 w-5 text-xs p-0 flex items-center justify-center animate-pulse"
                         >
                           {tab.notifications}
@@ -148,6 +198,43 @@ const AdminTapeChart: React.FC = () => {
           </div>
         </div>
 
+        {/* Quick Tab Switcher (when navigation is collapsed) */}
+        {isNavigationCollapsed && (
+          <div className="bg-gray-50 border-b border-gray-200 px-4 py-2">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+              <span className="text-xs text-gray-500 whitespace-nowrap mr-2">Quick switch:</span>
+              {tabConfig.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.value;
+
+                return (
+                  <button
+                    key={tab.value}
+                    onClick={() => setActiveTab(tab.value)}
+                    className={`
+                      flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-all duration-200
+                      whitespace-nowrap min-w-fit
+                      ${isActive
+                        ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                        : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-100'
+                      }
+                    `}
+                    title={tab.label}
+                  >
+                    <Icon className="w-3 h-3" />
+                    <span>{tab.label}</span>
+                    {tab.notifications > 0 && (
+                      <Badge variant="destructive" className="h-4 w-4 text-xs p-0 flex items-center justify-center">
+                        {tab.notifications}
+                      </Badge>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Enhanced Tab Content with smooth transitions */}
         <div className="flex-1 overflow-hidden">
           <TabsContent value="dashboard" className="m-0 h-full">
@@ -158,7 +245,7 @@ const AdminTapeChart: React.FC = () => {
 
           <TabsContent value="tapechart" className="m-0 h-full">
             <div className="animate-in fade-in-50 duration-300">
-              <Card className="m-4 lg:m-6 border-0 shadow-lg">
+              <Card className="m-1 border-0 shadow-lg">
                 <CardContent className="p-0">
                   <TapeChartView />
                 </CardContent>

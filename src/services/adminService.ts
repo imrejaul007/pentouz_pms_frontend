@@ -183,7 +183,7 @@ class AdminService {
       } catch (adminError: any) {
         console.log('🔍 ADMIN DEBUG - Admin endpoint failed:', adminError.response?.status, adminError.message);
         console.log('🔍 ADMIN DEBUG - Falling back to regular endpoint');
-        
+
         // Fallback to regular endpoint
         const response = await api.get(`/bookings?${params.toString()}`);
         console.log('🔍 ADMIN DEBUG - Regular endpoint success:', response.data);
@@ -198,6 +198,18 @@ class AdminService {
       }
       throw error;
     }
+  }
+
+  async getUpcomingBookings(filters: { days?: number; page?: number; limit?: number } = {}): Promise<ApiResponse<AdminBooking[]> & { stats: { todayArrivals: number; tomorrowArrivals: number; totalUpcoming: number } }> {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        params.append(key, value.toString());
+      }
+    });
+
+    const response = await api.get(`/bookings/upcoming?${params.toString()}`);
+    return response.data;
   }
 
   async getBookingById(id: string): Promise<ApiResponse<{ booking: AdminBooking }>> {
@@ -248,6 +260,11 @@ class AdminService {
     paymentStatus?: 'pending' | 'paid';
     status?: 'pending' | 'confirmed';
     roomType?: 'single' | 'double' | 'suite' | 'deluxe'; // Room type preference for room-type bookings
+    // Payment information for walk-in bookings
+    paymentMethod?: 'cash' | 'card' | 'upi' | 'bank_transfer';
+    advanceAmount?: number;
+    paymentReference?: string;
+    paymentNotes?: string;
   }): Promise<ApiResponse<{ booking: AdminBooking }>> {
     const payload = {
       ...bookingData,

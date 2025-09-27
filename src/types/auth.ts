@@ -3,7 +3,7 @@ export interface User {
   name: string;
   email: string;
   phone?: string;
-  role: 'guest' | 'staff' | 'admin';
+  role: 'guest' | 'staff' | 'admin' | 'travel_agent';
   hotelId?: string;
   preferences?: {
     bedType?: string;

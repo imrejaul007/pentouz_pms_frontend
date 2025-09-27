@@ -6,25 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
-import { ArrowUpIcon, StarIcon, CreditCardIcon, TrendingUpIcon, CheckIcon, XIcon, RefreshCwIcon } from 'lucide-react';
+import { ArrowUpIcon, StarIcon, CreditCardIcon, TrendingUpIcon, CheckIcon, XIcon, RefreshCwIcon, Home, DollarSignIcon, TrophyIcon, SettingsIcon } from 'lucide-react';
 import { ReservationWorkflowEngine } from '@/utils/ReservationWorkflowEngine';
+import upgradeService, { UpgradeSuggestion, UpgradeAnalytics } from '@/services/upgradeService';
+import { toast } from '@/utils/toast';
 
-interface RoomUpgrade {
-  id: string;
-  fromRoomType: string;
-  toRoomType: string;
-  fromRoomNumber: string;
-  toRoomNumber: string;
-  priceIncrease: number;
-  confidence: number;
-  reason: string;
-  benefits: string[];
-  guestProfile?: {
-    tier: string;
-    preferences: any[];
-    history: any[];
-  };
-}
+// Use the UpgradeSuggestion interface from the service
+type RoomUpgrade = UpgradeSuggestion;
 
 interface UpgradeRule {
   id: string;
@@ -43,13 +31,8 @@ interface UpgradeRule {
   };
 }
 
-interface UpgradeStats {
-  totalSuggestions: number;
-  acceptedUpgrades: number;
-  totalRevenue: number;
-  averageIncrease: number;
-  conversionRate: number;
-}
+// Use the UpgradeAnalytics interface from the service
+type UpgradeStats = UpgradeAnalytics;
 
 export const UpgradeProcessor: React.FC = () => {
   const [upgrades, setUpgrades] = useState<RoomUpgrade[]>([]);
@@ -57,9 +40,15 @@ export const UpgradeProcessor: React.FC = () => {
   const [stats, setStats] = useState<UpgradeStats>({
     totalSuggestions: 0,
     acceptedUpgrades: 0,
+    rejectedUpgrades: 0,
     totalRevenue: 0,
     averageIncrease: 0,
-    conversionRate: 0
+    conversionRate: 0,
+    byTier: {
+      vip: { acceptance: 0, count: 0 },
+      corporate: { acceptance: 0, count: 0 },
+      regular: { acceptance: 0, count: 0 }
+    }
   });
   const [selectedUpgrade, setSelectedUpgrade] = useState<RoomUpgrade | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -121,105 +110,89 @@ export const UpgradeProcessor: React.FC = () => {
     setRules(defaultRules);
   };
 
-  const loadUpgradeRules = () => {
-    // In a real implementation, this would load from API
-    const mockStats: UpgradeStats = {
-      totalSuggestions: 145,
-      acceptedUpgrades: 87,
-      totalRevenue: 15450,
-      averageIncrease: 125,
-      conversionRate: 60
-    };
-    setStats(mockStats);
+  const loadUpgradeRules = async () => {
+    try {
+      const analytics = await upgradeService.getUpgradeAnalytics();
+      setStats(analytics);
+    } catch (error) {
+      console.error('Failed to load upgrade analytics:', error);
+      toast.error('Failed to load upgrade statistics');
+    }
   };
 
   const generateUpgradeSuggestions = async () => {
     setProcessing(true);
-
-    // Mock upgrade suggestions - in real implementation, this would analyze current reservations
-    const mockUpgrades: RoomUpgrade[] = [
-      {
-        id: 'up-001',
-        fromRoomType: 'Standard',
-        toRoomType: 'Deluxe',
-        fromRoomNumber: '205',
-        toRoomNumber: '305',
-        priceIncrease: 75,
-        confidence: 92,
-        reason: 'VIP guest with preference for higher floors',
-        benefits: ['City view', 'Larger room', 'Premium amenities'],
-        guestProfile: {
-          tier: 'vip',
-          preferences: ['high floor', 'city view'],
-          history: ['Previous upgrades accepted']
+    try {
+      const result = await upgradeService.refreshSuggestions();
+      setUpgrades(result.suggestions);
+      toast.success(`Found ${result.total} upgrade opportunities`);
+    } catch (error) {
+      console.error('Failed to generate upgrade suggestions:', error);
+      toast.error('Failed to generate upgrade suggestions');
+      // Fallback to mock data if backend fails
+      const mockUpgrades: RoomUpgrade[] = [
+        {
+          id: 'up-001',
+          fromRoomType: 'Standard',
+          toRoomType: 'Deluxe',
+          fromRoomNumber: '205',
+          toRoomNumber: '305',
+          priceIncrease: 75,
+          confidence: 92,
+          reason: 'VIP guest with preference for higher floors',
+          benefits: ['City view', 'Larger room', 'Premium amenities'],
+          guestProfile: {
+            tier: 'vip',
+            preferences: ['high floor', 'city view'],
+            history: ['Previous upgrades accepted']
+          }
         }
-      },
-      {
-        id: 'up-002',
-        fromRoomType: 'Deluxe',
-        toRoomType: 'Suite',
-        fromRoomNumber: '412',
-        toRoomNumber: '501',
-        priceIncrease: 200,
-        confidence: 85,
-        reason: 'Corporate guest with high-value booking history',
-        benefits: ['Separate living area', 'Complimentary breakfast', 'Executive lounge access'],
-        guestProfile: {
-          tier: 'corporate',
-          preferences: ['business amenities'],
-          history: ['Multiple bookings this year']
-        }
-      },
-      {
-        id: 'up-003',
-        fromRoomType: 'Standard',
-        toRoomType: 'Premium',
-        fromRoomNumber: '108',
-        toRoomNumber: '208',
-        priceIncrease: 50,
-        confidence: 78,
-        reason: 'Anniversary celebration mentioned in booking',
-        benefits: ['Romantic setup', 'Complimentary wine', 'Late checkout'],
-        guestProfile: {
-          tier: 'regular',
-          preferences: ['special occasions'],
-          history: ['Anniversary booking']
-        }
-      }
-    ];
-
-    setTimeout(() => {
+      ];
       setUpgrades(mockUpgrades);
+    } finally {
       setProcessing(false);
-    }, 1500);
+    }
   };
 
   const processUpgrade = async (upgradeId: string, action: 'approve' | 'reject') => {
     const upgrade = upgrades.find(u => u.id === upgradeId);
     if (!upgrade) return;
 
-    const workflowEngine = ReservationWorkflowEngine.getInstance();
-
-    if (action === 'approve') {
-      // Create upgrade workflow
-      await workflowEngine.createWorkflow({
-        type: 'room_upgrade',
-        guestId: `guest-${upgradeId}`,
-        upgradeDetails: upgrade,
-        priority: 'high'
+    try {
+      await upgradeService.processUpgrade(upgradeId, action, {
+        reason: action === 'approve' ? 'Upgrade approved by staff' : 'Not suitable for upgrade'
       });
 
-      // Update stats
-      setStats(prev => ({
-        ...prev,
-        acceptedUpgrades: prev.acceptedUpgrades + 1,
-        totalRevenue: prev.totalRevenue + upgrade.priceIncrease,
-        conversionRate: Math.round(((prev.acceptedUpgrades + 1) / prev.totalSuggestions) * 100)
-      }));
-    }
+      // Create workflow for approved upgrades
+      if (action === 'approve') {
+        const workflowEngine = ReservationWorkflowEngine.getInstance();
+        await workflowEngine.createWorkflow({
+          type: 'room_upgrade',
+          guestId: upgrade.reservationId,
+          upgradeDetails: upgrade,
+          priority: 'high'
+        });
 
-    // Remove processed upgrade from list
-    setUpgrades(prev => prev.filter(u => u.id !== upgradeId));
+        // Update local stats
+        setStats(prev => ({
+          ...prev,
+          acceptedUpgrades: prev.acceptedUpgrades + 1,
+          totalRevenue: prev.totalRevenue + upgrade.priceIncrease,
+          conversionRate: Math.round(((prev.acceptedUpgrades + 1) / prev.totalSuggestions) * 100)
+        }));
+
+        toast.success(`Upgrade approved for ${upgrade.guestName || 'guest'}`);
+      } else {
+        toast.info(`Upgrade rejected for ${upgrade.guestName || 'guest'}`);
+      }
+
+      // Remove processed upgrade from list
+      setUpgrades(prev => prev.filter(u => u.id !== upgradeId));
+
+    } catch (error) {
+      console.error('Failed to process upgrade:', error);
+      toast.error('Failed to process upgrade');
+    }
   };
 
   const getConfidenceColor = (confidence: number): string => {
@@ -245,34 +218,73 @@ export const UpgradeProcessor: React.FC = () => {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <ArrowUpIcon className="h-4 w-4" />
-          Upgrade Processor
+        <Button
+          variant="outline"
+          className="gap-2 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300 text-blue-700 hover:text-blue-800 transition-all duration-200 shadow-sm hover:shadow-md rounded-lg"
+        >
+          <div className="flex items-center gap-2">
+            <Home className="h-4 w-4 text-blue-600" />
+            <span className="font-medium">Upgrade Processor</span>
+          </div>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-6xl max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ArrowUpIcon className="h-5 w-5" />
-            Automated Upgrade Processor
-          </DialogTitle>
+      <DialogContent className="max-w-6xl max-h-[90vh] bg-white rounded-xl shadow-2xl border-0 p-0 overflow-hidden flex flex-col">
+        <DialogHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-t-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                <Home className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <DialogTitle className="text-2xl font-bold text-white mb-1">
+                  Automated Upgrade Processor
+                </DialogTitle>
+                <p className="text-blue-100 text-sm">Intelligently process room upgrades and maximize revenue opportunities</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="px-3 py-1 bg-white/20 rounded-full text-xs font-medium">
+                ACTIVE
+              </div>
+            </div>
+          </div>
         </DialogHeader>
 
-        <Tabs defaultValue="suggestions" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="suggestions">Upgrade Suggestions</TabsTrigger>
-            <TabsTrigger value="rules">Upgrade Rules</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          </TabsList>
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6">
+            <Tabs defaultValue="suggestions" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 bg-gray-50 border border-gray-200 rounded-lg p-1 mb-6">
+              <TabsTrigger
+                value="suggestions"
+                className="data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
+              >
+                <Home className="h-4 w-4 mr-2" />
+                Upgrade Suggestions
+              </TabsTrigger>
+              <TabsTrigger
+                value="rules"
+                className="data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
+              >
+                <SettingsIcon className="h-4 w-4 mr-2" />
+                Upgrade Rules
+              </TabsTrigger>
+              <TabsTrigger
+                value="analytics"
+                className="data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
+              >
+                <TrophyIcon className="h-4 w-4 mr-2" />
+                Analytics
+              </TabsTrigger>
+            </TabsList>
 
           <TabsContent value="suggestions" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex gap-2">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex gap-3">
                 <Button
                   onClick={generateUpgradeSuggestions}
                   disabled={processing}
                   size="sm"
-                  className="gap-2"
+                  className="gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-lg hover:shadow-xl transition-all duration-300"
                 >
                   <RefreshCwIcon className={`h-4 w-4 ${processing ? 'animate-spin' : ''}`} />
                   {processing ? 'Analyzing...' : 'Refresh Suggestions'}
@@ -280,7 +292,7 @@ export const UpgradeProcessor: React.FC = () => {
                 <select
                   value={filter}
                   onChange={(e) => setFilter(e.target.value as any)}
-                  className="px-3 py-1 border rounded-md"
+                  className="px-4 py-2 border border-blue-200 rounded-lg bg-white/80 backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="all">All Suggestions</option>
                   <option value="pending">Pending</option>
@@ -288,7 +300,8 @@ export const UpgradeProcessor: React.FC = () => {
                   <option value="rejected">Rejected</option>
                 </select>
               </div>
-              <div className="text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm font-medium text-slate-700 bg-white/60 backdrop-blur-sm px-4 py-2 rounded-lg shadow-sm">
+                <Home className="h-4 w-4 text-blue-500" />
                 {upgrades.length} suggestions found
               </div>
             </div>
@@ -296,8 +309,8 @@ export const UpgradeProcessor: React.FC = () => {
             <ScrollArea className="h-[500px] pr-4">
               <div className="space-y-4">
                 {upgrades.map((upgrade) => (
-                  <Card key={upgrade.id} className="border-l-4 border-l-blue-500">
-                    <CardContent className="p-4">
+                  <Card key={upgrade.id} className="border-l-4 border-l-blue-500 bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] group">
+                    <CardContent className="p-6">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
                           {getRoomTypeIcon(upgrade.toRoomType)}
@@ -310,7 +323,8 @@ export const UpgradeProcessor: React.FC = () => {
                             </div>
                           </div>
                         </div>
-                        <Badge className={`${getConfidenceColor(upgrade.confidence)}`}>
+                        <Badge className={`${getConfidenceColor(upgrade.confidence)} shadow-sm px-3 py-1 font-semibold`}>
+                          <TrophyIcon className="h-3 w-3 mr-1" />
                           {upgrade.confidence}% confidence
                         </Badge>
                       </div>
@@ -322,7 +336,8 @@ export const UpgradeProcessor: React.FC = () => {
                         </div>
                         <div>
                           <div className="text-sm font-medium mb-1">Price Increase</div>
-                          <div className="text-lg font-bold text-green-600">
+                          <div className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent flex items-center gap-1">
+                            <DollarSignIcon className="h-5 w-5 text-green-600" />
                             +${upgrade.priceIncrease}
                           </div>
                         </div>
@@ -340,8 +355,8 @@ export const UpgradeProcessor: React.FC = () => {
                       </div>
 
                       {upgrade.guestProfile && (
-                        <div className="mb-4 p-3 bg-gray-50 rounded-md">
-                          <div className="text-sm font-medium mb-2">Guest Profile</div>
+                        <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-100">
+                          <div className="text-sm font-semibold mb-2 text-blue-700">Guest Profile</div>
                           <div className="text-xs space-y-1">
                             <div><strong>Tier:</strong> {upgrade.guestProfile.tier.toUpperCase()}</div>
                             <div><strong>Preferences:</strong> {upgrade.guestProfile.preferences.join(', ')}</div>
@@ -350,11 +365,11 @@ export const UpgradeProcessor: React.FC = () => {
                         </div>
                       )}
 
-                      <div className="flex gap-2">
+                      <div className="flex gap-3">
                         <Button
                           size="sm"
                           onClick={() => processUpgrade(upgrade.id, 'approve')}
-                          className="gap-2"
+                          className="gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-md hover:shadow-lg transition-all duration-300"
                         >
                           <CheckIcon className="h-4 w-4" />
                           Approve Upgrade
@@ -363,7 +378,7 @@ export const UpgradeProcessor: React.FC = () => {
                           size="sm"
                           variant="outline"
                           onClick={() => processUpgrade(upgrade.id, 'reject')}
-                          className="gap-2"
+                          className="gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-all duration-300"
                         >
                           <XIcon className="h-4 w-4" />
                           Reject
@@ -372,6 +387,7 @@ export const UpgradeProcessor: React.FC = () => {
                           size="sm"
                           variant="ghost"
                           onClick={() => setSelectedUpgrade(upgrade)}
+                          className="text-blue-600 hover:bg-blue-50 transition-all duration-300"
                         >
                           View Details
                         </Button>
@@ -440,42 +456,58 @@ export const UpgradeProcessor: React.FC = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="analytics" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card>
+          <TabsContent value="analytics" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 shadow-lg hover:shadow-xl transition-all duration-300">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Total Suggestions</CardTitle>
+                  <CardTitle className="text-sm font-semibold text-blue-700 flex items-center gap-2">
+                    <Home className="h-4 w-4" />
+                    Total Suggestions
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stats.totalSuggestions}</div>
+                  <div className="text-3xl font-bold text-blue-600">{stats.totalSuggestions}</div>
+                  <div className="text-xs text-blue-500 mt-1">Active opportunities</div>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 shadow-lg hover:shadow-xl transition-all duration-300">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Accepted Upgrades</CardTitle>
+                  <CardTitle className="text-sm font-semibold text-green-700 flex items-center gap-2">
+                    <CheckIcon className="h-4 w-4" />
+                    Accepted Upgrades
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">{stats.acceptedUpgrades}</div>
+                  <div className="text-3xl font-bold text-green-600">{stats.acceptedUpgrades}</div>
+                  <div className="text-xs text-green-500 mt-1">Confirmed bookings</div>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200 shadow-lg hover:shadow-xl transition-all duration-300">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Revenue Generated</CardTitle>
+                  <CardTitle className="text-sm font-semibold text-purple-700 flex items-center gap-2">
+                    <DollarSignIcon className="h-4 w-4" />
+                    Revenue Generated
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">${stats.totalRevenue.toLocaleString()}</div>
+                  <div className="text-3xl font-bold text-purple-600">${stats?.totalRevenue?.toLocaleString() || '0'}</div>
+                  <div className="text-xs text-purple-500 mt-1">Additional income</div>
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-gradient-to-br from-orange-50 to-yellow-50 border-orange-200 shadow-lg hover:shadow-xl transition-all duration-300">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+                  <CardTitle className="text-sm font-semibold text-orange-700 flex items-center gap-2">
+                    <TrophyIcon className="h-4 w-4" />
+                    Conversion Rate
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stats.conversionRate}%</div>
-                  <Progress value={stats.conversionRate} className="mt-2" />
+                  <div className="text-3xl font-bold text-orange-600">{stats.conversionRate}%</div>
+                  <Progress value={stats.conversionRate} className="mt-3 h-2" />
+                  <div className="text-xs text-orange-500 mt-1">Success rate</div>
                 </CardContent>
               </Card>
             </div>
@@ -514,6 +546,8 @@ export const UpgradeProcessor: React.FC = () => {
             </Card>
           </TabsContent>
         </Tabs>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

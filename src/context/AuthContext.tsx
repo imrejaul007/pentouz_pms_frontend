@@ -35,14 +35,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const initializeAuth = async () => {
     try {
       const token = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+
       if (token) {
         authService.setToken(token);
+
+        // First, set stored user data if available for immediate UI update
+        if (storedUser) {
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            setUser(parsedUser);
+          } catch (e) {
+            console.error('Failed to parse stored user data:', e);
+          }
+        }
+
+        // Then fetch fresh user data from server
         const userData = await authService.getCurrentUser();
         setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
       }
     } catch (error) {
       console.error('Auth initialization failed:', error);
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
     } finally {
       setIsLoading(false);
     }

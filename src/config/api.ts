@@ -19,14 +19,14 @@ const getWebSocketUrl = (): string => {
   if ((import.meta as any).env?.VITE_WS_URL) {
     return (import.meta as any).env.VITE_WS_URL;
   }
-  
+
   // In production, use relative URLs to work with reverse proxy/same domain
   if ((import.meta as any).env?.PROD) {
-    return window.location.origin.replace(/^http/, 'ws');
+    return window.location.origin;
   }
-  
-  // In development, use localhost
-  return 'ws://localhost:4000';
+
+  // In development, use localhost with HTTP protocol for Socket.IO
+  return 'http://localhost:4000';
 };
 
 export const API_CONFIG = {

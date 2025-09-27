@@ -593,9 +593,20 @@ const UnifiedBillingSystem: React.FC = () => {
 
       setCurrentSession(updatedSession);
       setPaymentDialogOpen(false);
-      
-      toast.success(`Payment processed successfully via ${paymentMethod}${paymentMethod === 'room_charge' ? ' - Charged to room' : ''}`);
-      
+
+      // Check for settlement integration
+      let settlementMessage = '';
+      if (response.data.settlementIntegration) {
+        const integration = response.data.settlementIntegration;
+        if (integration.integrationType === 'new_settlement_created') {
+          settlementMessage = ' | New settlement created automatically';
+        } else if (integration.integrationType === 'added_to_existing_settlement') {
+          settlementMessage = ' | Added to existing settlement';
+        }
+      }
+
+      toast.success(`Payment processed successfully via ${paymentMethod}${paymentMethod === 'room_charge' ? ' - Charged to room' : ''}${settlementMessage}`);
+
       // Generate receipt
       generateReceipt(updatedSession);
     } catch (error) {

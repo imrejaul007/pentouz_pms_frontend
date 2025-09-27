@@ -172,7 +172,7 @@ export interface RoomStatus {
   roomNumber: string;
   floor: number;
   type: string;
-  status: 'occupied' | 'vacant_dirty' | 'vacant_clean' | 'out_of_order' | 'maintenance';
+  status: 'occupied' | 'dirty' | 'vacant' | 'reserved' | 'out_of_order' | 'maintenance';
   currentBooking: Booking | null;
   nextBooking: Booking | null;
   housekeepingStatus: 'pending' | 'in_progress' | 'completed';

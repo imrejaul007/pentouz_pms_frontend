@@ -210,13 +210,19 @@ export function DataTable<T extends Record<string, any>>({
                           key={colIndex}
                           className={cn(
                             'px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900',
-                            'max-w-0 truncate',
+                            // Don't truncate for actions column, but truncate others
+                            column.key === 'actions' ? '' : 'max-w-0 truncate',
                             column.align === 'center' && 'text-center',
                             column.align === 'right' && 'text-right'
                           )}
-                          style={{ maxWidth: '200px' }}
+                          style={{
+                            // Give actions column more space, limit others
+                            maxWidth: column.key === 'actions' ? '300px' : '200px',
+                            // Ensure actions column content doesn't wrap awkwardly
+                            minWidth: column.key === 'actions' ? '250px' : 'auto'
+                          }}
                         >
-                          <div className="truncate" title={String(column.render ? column.render(value, row) : value)}>
+                          <div className={column.key === 'actions' ? '' : 'truncate'} title={String(column.render ? column.render(value, row) : value)}>
                             {column.render ? column.render(value, row) : value}
                           </div>
                         </td>

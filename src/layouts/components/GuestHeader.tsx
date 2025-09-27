@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { Bell, User, Menu } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/button';
+import { useNotifications, useNotificationStream } from '../../hooks/useNotifications';
+import NotificationDropdown from '../../components/notifications/NotificationDropdown';
+import SettingsDropdown from '../../components/settings/SettingsDropdown';
 
 interface GuestHeaderProps {
   onMenuToggle?: () => void;
@@ -9,6 +12,11 @@ interface GuestHeaderProps {
 
 export default function GuestHeader({ onMenuToggle }: GuestHeaderProps) {
   const { user, logout } = useAuth();
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Connect to notification stream
+  useNotificationStream();
 
 
   return (
@@ -25,23 +33,38 @@ export default function GuestHeader({ onMenuToggle }: GuestHeaderProps) {
           </button>
           
           <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">
-            <span className="hidden sm:inline">THE PENTOUZ Portal</span>
-            <span className="sm:hidden">PENTOUZ</span>
+            <span className="hidden sm:inline">
+              {user?.role === 'travel_agent' ? 'THE PENTOUZ Travel Agent Portal' : 'THE PENTOUZ Portal'}
+            </span>
+            <span className="sm:hidden">
+              {user?.role === 'travel_agent' ? 'TA Portal' : 'PENTOUZ'}
+            </span>
           </h1>
         </div>
         
         <div className="flex items-center space-x-2 sm:space-x-4">
-          {/* Static Notification Bell */}
+          {/* Notification Dropdown */}
           <div className="relative">
-            <button className="relative p-2 rounded-md text-gray-500 hover:bg-gray-100 transition-colors">
-              <Bell className="h-5 w-5" />
-            </button>
+            <NotificationDropdown
+              isOpen={isNotificationOpen}
+              onToggle={() => setIsNotificationOpen(!isNotificationOpen)}
+            />
           </div>
-          
+
+          {/* Settings Dropdown */}
+          <div className="relative">
+            <SettingsDropdown
+              isOpen={isSettingsOpen}
+              onToggle={() => setIsSettingsOpen(!isSettingsOpen)}
+            />
+          </div>
+
           <div className="hidden sm:flex items-center space-x-3">
             <div className="text-right">
               <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-              <p className="text-xs text-gray-500">{user?.loyalty?.tier} Member</p>
+              <p className="text-xs text-gray-500">
+                {user?.role === 'travel_agent' ? 'Travel Agent' : `${user?.loyalty?.tier} Member`}
+              </p>
             </div>
           </div>
           

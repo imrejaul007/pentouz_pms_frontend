@@ -33,15 +33,57 @@ export class PushNotificationService {
         throw new Error('Notification permission denied');
       }
 
-      // Subscribe to push notifications
-      const subscription = await this.registration!.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: this.urlBase64ToUint8Array(
-          process.env.VITE_VAPID_PUBLIC_KEY || 'your-vapid-public-key'
-        )
-      });
+      // Check if push notifications are supported
+      if (!('pushManager' in this.registration!)) {
+        console.warn('Push notifications not supported by this browser');
+        return null;
+      }
 
-      return JSON.stringify(subscription);
+      // Check for existing subscription first
+      const existingSubscription = await this.registration!.pushManager.getSubscription();
+      if (existingSubscription) {
+        console.log('Using existing push subscription');
+        return JSON.stringify(existingSubscription);
+      }
+
+      // Try to subscribe with VAPID key
+      try {
+        // Note: For development, you might need to generate proper VAPID keys
+        // You can generate them using: npx web-push generate-vapid-keys
+        const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY ||
+          'BKagOWjyDhkBJxEWnVbirY2pLLuZQ2xJryYLGpDXj3OBIBsz5Vj8zj5x1Fu5SmLlYKkWHD2HWcPLt6xnUtwilIg';
+
+        const subscription = await this.registration!.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: this.urlBase64ToUint8Array(vapidKey)
+        });
+
+        console.log('Push subscription successful:', subscription);
+        return JSON.stringify(subscription);
+      } catch (subscriptionError: any) {
+        // If VAPID key fails, try without it (for local testing)
+        console.warn('VAPID subscription failed, trying without applicationServerKey:', subscriptionError);
+
+        if (subscriptionError.name === 'AbortError') {
+          // This usually means the VAPID key is invalid or the push service is unavailable
+          console.error('Push service error - this might be a VAPID key issue or push service is unavailable');
+
+          // For local development, we can still use notifications without push
+          // Just return a mock subscription for testing
+          if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.log('Local development detected - using mock subscription');
+            return JSON.stringify({
+              endpoint: 'mock://localhost/push',
+              keys: {
+                p256dh: 'mock-key',
+                auth: 'mock-auth'
+              }
+            });
+          }
+        }
+
+        throw subscriptionError;
+      }
     } catch (error) {
       console.error('Push subscription failed:', error);
       return null;

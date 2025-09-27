@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { waitlistService, WaitlistEntry, WaitlistAnalytics, MatchResult as ServiceMatchResult } from '../../services/waitlistService';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  ListIcon,
+  BarChart3,
   UserCheckIcon,
   ClockIcon,
   TrendingUpIcon,
@@ -25,41 +26,9 @@ import {
   RefreshCwIcon
 } from 'lucide-react';
 
-interface WaitlistEntry {
-  id: string;
-  guestId: string;
-  guestName: string;
-  guestTier: 'regular' | 'vip' | 'svip' | 'corporate' | 'diamond';
-  email: string;
-  phone: string;
-  requestedRoomType: string;
-  checkInDate: string;
-  checkOutDate: string;
-  partySize: number;
-  maxPrice: number;
-  urgency: 'low' | 'medium' | 'high' | 'urgent';
-  preferences: string[];
-  specialRequests: string[];
-  createdAt: string;
-  lastContactDate?: string;
-  status: 'waiting' | 'matched' | 'contacted' | 'confirmed' | 'declined' | 'expired';
-  matchScore?: number;
-  autoNotify: boolean;
-  notes: string[];
-}
-
-interface MatchResult {
-  waitlistEntryId: string;
-  roomId: string;
-  roomNumber: string;
-  roomType: string;
-  matchScore: number;
-  matchReasons: string[];
-  priceMatch: boolean;
-  dateMatch: boolean;
-  typeMatch: boolean;
-  availabilityConfirmed: boolean;
-  recommendedAction: 'auto_confirm' | 'manual_review' | 'contact_guest';
+// Using MatchResult from service as ServiceMatchResult
+interface MatchResult extends ServiceMatchResult {
+  waitlistEntryId: string; // Map _id to waitlistEntryId for compatibility
 }
 
 interface WaitlistSettings {
@@ -73,12 +42,13 @@ interface WaitlistSettings {
   considerAlternativeRoomTypes: boolean;
 }
 
+// Using WaitlistAnalytics from service, with local extension
 interface WaitlistStats {
   totalWaiting: number;
   processedToday: number;
   successfulMatches: number;
   conversionRate: number;
-  averageWaitTime: number; // hours
+  averageWaitTime: number;
   priorityQueue: number;
 }
 
@@ -116,204 +86,103 @@ export const WaitlistProcessor: React.FC = () => {
     }
   }, [settings.autoProcessing, settings.processInterval]);
 
-  const loadWaitlistData = () => {
-    // Mock waitlist data
-    const mockWaitlist: WaitlistEntry[] = [
-      {
-        id: 'wl-001',
-        guestId: 'guest-001',
-        guestName: 'Alexandra Chen',
-        guestTier: 'vip',
-        email: 'alexandra.chen@email.com',
-        phone: '+1-555-0123',
-        requestedRoomType: 'Suite',
-        checkInDate: '2024-01-20',
-        checkOutDate: '2024-01-23',
-        partySize: 2,
-        maxPrice: 450,
-        urgency: 'high',
-        preferences: ['high floor', 'city view', 'quiet room'],
-        specialRequests: ['champagne arrival', 'late checkout'],
-        createdAt: '2024-01-15T10:30:00',
-        lastContactDate: '2024-01-16T14:20:00',
-        status: 'waiting',
-        autoNotify: true,
-        notes: ['VIP guest - priority handling', 'Preferred upgrade if available']
-      },
-      {
-        id: 'wl-002',
-        guestId: 'guest-002',
-        guestName: 'Marcus Johnson',
-        guestTier: 'corporate',
-        email: 'marcus.johnson@company.com',
-        phone: '+1-555-0456',
-        requestedRoomType: 'Deluxe',
-        checkInDate: '2024-01-18',
-        checkOutDate: '2024-01-20',
-        partySize: 1,
-        maxPrice: 280,
-        urgency: 'medium',
-        preferences: ['business amenities', 'wifi'],
-        specialRequests: ['early checkin'],
-        createdAt: '2024-01-14T16:45:00',
-        status: 'matched',
-        matchScore: 87,
-        autoNotify: true,
-        notes: ['Corporate rate eligible']
-      },
-      {
-        id: 'wl-003',
-        guestId: 'guest-003',
-        guestName: 'Sofia Rodriguez',
-        guestTier: 'regular',
-        email: 'sofia.rodriguez@email.com',
-        phone: '+1-555-0789',
-        requestedRoomType: 'Standard',
-        checkInDate: '2024-01-22',
-        checkOutDate: '2024-01-24',
-        partySize: 2,
-        maxPrice: 180,
-        urgency: 'low',
-        preferences: ['ground floor', 'accessible'],
-        specialRequests: ['wheelchair accessible'],
-        createdAt: '2024-01-16T09:15:00',
-        status: 'waiting',
-        autoNotify: false,
-        notes: ['Accessibility requirements confirmed']
-      },
-      {
-        id: 'wl-004',
-        guestId: 'guest-004',
-        guestName: 'David Kim',
-        guestTier: 'diamond',
-        email: 'david.kim@email.com',
-        phone: '+1-555-0321',
-        requestedRoomType: 'Presidential Suite',
-        checkInDate: '2024-01-19',
-        checkOutDate: '2024-01-22',
-        partySize: 4,
-        maxPrice: 800,
-        urgency: 'urgent',
-        preferences: ['top floor', 'panoramic view'],
-        specialRequests: ['private check-in', 'concierge service'],
-        createdAt: '2024-01-17T11:00:00',
-        status: 'contacted',
-        matchScore: 95,
-        autoNotify: true,
-        notes: ['Diamond tier - highest priority', 'Confirmed interest in available suite']
+  const loadWaitlistData = async () => {
+    try {
+      // Load real waitlist data from backend
+      const response = await waitlistService.getActiveWaitlist({
+        status: filterStatus === 'all' ? undefined : filterStatus,
+        limit: 50
+      });
+
+      if (response.status === 'success') {
+        setWaitlist(response.data.waitlist);
+
+        // Extract matches from waitlist entries that have match results
+        const allMatches: MatchResult[] = [];
+        response.data.waitlist.forEach((entry: WaitlistEntry) => {
+          if (entry.matchResults && entry.matchResults.length > 0) {
+            entry.matchResults.forEach(match => {
+              allMatches.push({
+                ...match,
+                waitlistEntryId: entry._id,
+                _id: match._id
+              });
+            });
+          }
+        });
+        setMatches(allMatches);
       }
-    ];
-
-    setWaitlist(mockWaitlist);
-
-    // Mock matches
-    const mockMatches: MatchResult[] = [
-      {
-        waitlistEntryId: 'wl-002',
-        roomId: 'room-305',
-        roomNumber: '305',
-        roomType: 'Deluxe',
-        matchScore: 87,
-        matchReasons: ['Room type match', 'Date availability', 'Price within budget'],
-        priceMatch: true,
-        dateMatch: true,
-        typeMatch: true,
-        availabilityConfirmed: true,
-        recommendedAction: 'contact_guest'
-      },
-      {
-        waitlistEntryId: 'wl-004',
-        roomId: 'room-801',
-        roomNumber: '801',
-        roomType: 'Presidential Suite',
-        matchScore: 95,
-        matchReasons: ['Perfect room type match', 'Premium location', 'All preferences met'],
-        priceMatch: true,
-        dateMatch: true,
-        typeMatch: true,
-        availabilityConfirmed: true,
-        recommendedAction: 'auto_confirm'
-      }
-    ];
-
-    setMatches(mockMatches);
+    } catch (error) {
+      console.error('Failed to load waitlist data:', error);
+      // Fallback to empty arrays on error
+      setWaitlist([]);
+      setMatches([]);
+    }
   };
 
-  const loadWaitlistStats = () => {
-    const mockStats: WaitlistStats = {
-      totalWaiting: 12,
-      processedToday: 8,
-      successfulMatches: 6,
-      conversionRate: 75,
-      averageWaitTime: 18.5,
-      priorityQueue: 3
-    };
-    setStats(mockStats);
+  const loadWaitlistStats = async () => {
+    try {
+      const analytics = await waitlistService.getWaitlistAnalytics('month');
+
+      const totalStats = analytics.totalStats[0] || {};
+      const periodStats = analytics.periodStats[0] || {};
+
+      const calculatedStats: WaitlistStats = {
+        totalWaiting: totalStats.totalWaiting || 0,
+        processedToday: periodStats.processedToday || 0,
+        successfulMatches: periodStats.successfulMatches || 0,
+        conversionRate: totalStats.totalWaiting > 0
+          ? Math.round((periodStats.successfulMatches / totalStats.totalWaiting) * 100)
+          : 0,
+        averageWaitTime: totalStats.averageWaitTime || 0,
+        priorityQueue: totalStats.priorityQueue || 0
+      };
+
+      setStats(calculatedStats);
+    } catch (error) {
+      console.error('Failed to load waitlist stats:', error);
+      // Fallback to zero stats on error
+      setStats({
+        totalWaiting: 0,
+        processedToday: 0,
+        successfulMatches: 0,
+        conversionRate: 0,
+        averageWaitTime: 0,
+        priorityQueue: 0
+      });
+    }
   };
 
   const processWaitlist = async () => {
     setProcessing(true);
 
-    // Simulate processing logic
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      // Process waitlist matches using backend service
+      const response = await waitlistService.processWaitlistMatches(true);
 
-    // In real implementation, this would:
-    // 1. Check room availability against waitlist criteria
-    // 2. Calculate match scores based on preferences, price, dates
-    // 3. Prioritize by guest tier and urgency
-    // 4. Generate match results
-
-    console.log('Waitlist processing completed');
-    setProcessing(false);
+      if (response.status === 'success') {
+        console.log(`Waitlist processing completed: ${response.data.message}`);
+        // Reload data to show new matches
+        await loadWaitlistData();
+        await loadWaitlistStats();
+      }
+    } catch (error) {
+      console.error('Waitlist processing failed:', error);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const getTierColor = (tier: string): string => {
-    switch (tier) {
-      case 'diamond':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'svip':
-        return 'bg-gold-100 text-gold-800 border-gold-200';
-      case 'vip':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'corporate':
-        return 'bg-green-100 text-green-800 border-green-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
+    return waitlistService.getTierColor(tier);
   };
 
   const getUrgencyColor = (urgency: string): string => {
-    switch (urgency) {
-      case 'urgent':
-        return 'bg-red-100 text-red-800';
-      case 'high':
-        return 'bg-orange-100 text-orange-800';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'low':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+    return waitlistService.getUrgencyColor(urgency);
   };
 
   const getStatusColor = (status: string): string => {
-    switch (status) {
-      case 'waiting':
-        return 'bg-blue-100 text-blue-800';
-      case 'matched':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'contacted':
-        return 'bg-orange-100 text-orange-800';
-      case 'confirmed':
-        return 'bg-green-100 text-green-800';
-      case 'declined':
-        return 'bg-red-100 text-red-800';
-      case 'expired':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+    return waitlistService.getStatusColor(status);
   };
 
   const getStatusIcon = (status: string) => {
@@ -331,79 +200,120 @@ export const WaitlistProcessor: React.FC = () => {
       case 'expired':
         return <AlertCircleIcon className="h-4 w-4" />;
       default:
-        return <ListIcon className="h-4 w-4" />;
+        return <BarChart3 className="h-4 w-4" />;
     }
   };
 
-  const confirmMatch = (matchId: string) => {
-    setMatches(prev => prev.filter(m => m.waitlistEntryId !== matchId));
-    setWaitlist(prev => prev.map(entry =>
-      entry.id === matchId
-        ? { ...entry, status: 'confirmed' }
-        : entry
-    ));
+  const confirmMatch = async (waitlistId: string, matchId: string) => {
+    try {
+      await waitlistService.handleMatchAction(waitlistId, matchId, 'confirm', 'Match confirmed from waitlist processor');
+      // Reload data to reflect changes
+      await loadWaitlistData();
+      await loadWaitlistStats();
+    } catch (error) {
+      console.error('Failed to confirm match:', error);
+    }
   };
 
-  const declineMatch = (matchId: string) => {
-    setMatches(prev => prev.filter(m => m.waitlistEntryId !== matchId));
-    setWaitlist(prev => prev.map(entry =>
-      entry.id === matchId
-        ? { ...entry, status: 'waiting', matchScore: undefined }
-        : entry
-    ));
+  const declineMatch = async (waitlistId: string, matchId: string) => {
+    try {
+      await waitlistService.handleMatchAction(waitlistId, matchId, 'decline', 'Match declined from waitlist processor');
+      // Reload data to reflect changes
+      await loadWaitlistData();
+      await loadWaitlistStats();
+    } catch (error) {
+      console.error('Failed to decline match:', error);
+    }
   };
 
-  const contactGuest = (entryId: string) => {
-    setWaitlist(prev => prev.map(entry =>
-      entry.id === entryId
-        ? {
-            ...entry,
-            status: 'contacted',
-            lastContactDate: new Date().toISOString()
-          }
-        : entry
-    ));
+  const contactGuest = async (entryId: string) => {
+    try {
+      await waitlistService.contactWaitlistGuest(entryId, 'email', 'Contacted via waitlist processor');
+      // Reload data to reflect changes
+      await loadWaitlistData();
+      await loadWaitlistStats();
+    } catch (error) {
+      console.error('Failed to contact guest:', error);
+    }
   };
 
   const filteredWaitlist = waitlist.filter(entry =>
     filterStatus === 'all' || entry.status === filterStatus
   );
 
-  // Sort by priority: Diamond > SVIP > VIP > Corporate > Regular, then by urgency
+  // Sort by priority: Use backend calculated priority, then by creation date
   const prioritizedWaitlist = [...filteredWaitlist].sort((a, b) => {
-    const tierPriority = { diamond: 5, svip: 4, vip: 3, corporate: 2, regular: 1 };
-    const urgencyPriority = { urgent: 4, high: 3, medium: 2, low: 1 };
-
-    if (tierPriority[a.guestTier] !== tierPriority[b.guestTier]) {
-      return tierPriority[b.guestTier] - tierPriority[a.guestTier];
+    if (a.priority !== b.priority) {
+      return b.priority - a.priority; // Higher priority first
     }
-
-    return urgencyPriority[b.urgency] - urgencyPriority[a.urgency];
+    // If priority is the same, sort by creation date (oldest first)
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
   });
 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <ListIcon className="h-4 w-4" />
-          Waitlist Processor
+        <Button 
+          variant="outline" 
+          className="gap-2 bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300 text-gray-700 hover:text-gray-800 transition-all duration-200 shadow-sm hover:shadow-md rounded-lg"
+        >
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-gray-600" />
+            <span className="font-medium">Waitlist Processor</span>
+          </div>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-7xl max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ListIcon className="h-5 w-5" />
-            Automated Waitlist Processing
-          </DialogTitle>
+      <DialogContent className="max-w-7xl max-h-[90vh] bg-white rounded-xl shadow-2xl border-0 p-0 overflow-hidden flex flex-col">
+        <DialogHeader className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-6 rounded-t-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                <BarChart3 className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <DialogTitle className="text-2xl font-bold text-white mb-1">
+                  Automated Waitlist Processing
+                </DialogTitle>
+                <p className="text-purple-100 text-sm">Intelligently match guests with available rooms and optimize occupancy</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="px-3 py-1 bg-white/20 rounded-full text-xs font-medium">
+                {stats.totalWaiting} WAITING
+              </div>
+            </div>
+          </div>
         </DialogHeader>
 
-        <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="waitlist">Waitlist Queue</TabsTrigger>
-            <TabsTrigger value="matches">Smart Matches</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6">
+            <Tabs defaultValue="dashboard" className="w-full">
+            <TabsList className="grid w-full grid-cols-4 bg-gray-50 border border-gray-200 rounded-lg p-1 mb-6">
+              <TabsTrigger 
+                value="dashboard"
+                className="data-[state=active]:bg-white data-[state=active]:text-purple-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
+              >
+                Dashboard
+              </TabsTrigger>
+              <TabsTrigger 
+                value="waitlist"
+                className="data-[state=active]:bg-white data-[state=active]:text-purple-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
+              >
+                Waitlist Queue
+              </TabsTrigger>
+              <TabsTrigger 
+                value="matches"
+                className="data-[state=active]:bg-white data-[state=active]:text-purple-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
+              >
+                Smart Matches
+              </TabsTrigger>
+              <TabsTrigger 
+                value="settings"
+                className="data-[state=active]:bg-white data-[state=active]:text-purple-600 data-[state=active]:shadow-sm transition-all duration-200 rounded-md"
+              >
+                Settings
+              </TabsTrigger>
+            </TabsList>
 
           <TabsContent value="dashboard" className="space-y-4">
             {/* Processing Status */}
@@ -451,7 +361,7 @@ export const WaitlistProcessor: React.FC = () => {
                     <div className="text-sm text-gray-600">Conversion Rate</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold">{stats.averageWaitTime}h</div>
+                    <div className="text-2xl font-bold">{Math.round(stats.averageWaitTime)}h</div>
                     <div className="text-sm text-gray-600">Avg Wait Time</div>
                   </div>
                 </div>
@@ -466,13 +376,13 @@ export const WaitlistProcessor: React.FC = () => {
               <CardContent>
                 <div className="space-y-3">
                   {matches.slice(0, 5).map((match) => {
-                    const entry = waitlist.find(e => e.id === match.waitlistEntryId);
+                    const entry = waitlist.find(e => e._id === match.waitlistEntryId);
                     return (
                       <div key={match.waitlistEntryId} className="flex items-center justify-between p-3 border rounded-lg">
                         <div className="flex items-center gap-3">
                           <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                           <div>
-                            <div className="font-medium">{entry?.guestName}</div>
+                            <div className="font-medium">{entry?.guestInfo.name}</div>
                             <div className="text-sm text-gray-600">
                               {match.roomType} - Room {match.roomNumber}
                             </div>
@@ -482,8 +392,8 @@ export const WaitlistProcessor: React.FC = () => {
                           <Badge className="bg-green-100 text-green-800">
                             {match.matchScore}% Match
                           </Badge>
-                          <Badge className={getTierColor(entry?.guestTier || 'regular')}>
-                            {entry?.guestTier?.toUpperCase()}
+                          <Badge className={getTierColor(entry?.guestInfo.tier || 'regular')}>
+                            {entry?.guestInfo.tier?.toUpperCase()}
                           </Badge>
                           <div className="text-sm text-gray-500">
                             {match.recommendedAction.replace('_', ' ').toUpperCase()}
@@ -528,11 +438,11 @@ export const WaitlistProcessor: React.FC = () => {
             <ScrollArea className="h-[500px] pr-4">
               <div className="space-y-4">
                 {prioritizedWaitlist.map((entry, index) => (
-                  <Card key={entry.id} className={`border-l-4 ${
-                    entry.guestTier === 'diamond' ? 'border-l-purple-500' :
-                    entry.guestTier === 'svip' ? 'border-l-yellow-500' :
-                    entry.guestTier === 'vip' ? 'border-l-blue-500' :
-                    entry.guestTier === 'corporate' ? 'border-l-green-500' :
+                  <Card key={entry._id} className={`border-l-4 ${
+                    entry.guestInfo.tier === 'diamond' ? 'border-l-purple-500' :
+                    entry.guestInfo.tier === 'svip' ? 'border-l-yellow-500' :
+                    entry.guestInfo.tier === 'vip' ? 'border-l-blue-500' :
+                    entry.guestInfo.tier === 'corporate' ? 'border-l-green-500' :
                     'border-l-gray-400'
                   }`}>
                     <CardContent className="p-4">
@@ -542,9 +452,9 @@ export const WaitlistProcessor: React.FC = () => {
                             #{index + 1}
                           </div>
                           <div>
-                            <div className="font-semibold text-lg">{entry.guestName}</div>
+                            <div className="font-semibold text-lg">{entry.guestInfo.name}</div>
                             <div className="text-sm text-gray-600 mb-1">
-                              {entry.email} • {entry.phone}
+                              {entry.guestInfo.email} • {entry.guestInfo.phone}
                             </div>
                             <div className="text-sm text-gray-500">
                               {entry.partySize} {entry.partySize === 1 ? 'guest' : 'guests'} •
@@ -554,8 +464,8 @@ export const WaitlistProcessor: React.FC = () => {
                         </div>
                         <div className="flex flex-col gap-2 items-end">
                           <div className="flex gap-2">
-                            <Badge className={getTierColor(entry.guestTier)}>
-                              {entry.guestTier.toUpperCase()}
+                            <Badge className={getTierColor(entry.guestInfo.tier)}>
+                              {entry.guestInfo.tier.toUpperCase()}
                             </Badge>
                             <Badge className={getUrgencyColor(entry.urgency)}>
                               {entry.urgency.toUpperCase()}
@@ -565,9 +475,9 @@ export const WaitlistProcessor: React.FC = () => {
                               {entry.status.toUpperCase()}
                             </Badge>
                           </div>
-                          {entry.matchScore && (
+                          {entry.bestMatch?.matchScore && (
                             <Badge className="bg-green-100 text-green-800">
-                              {entry.matchScore}% Match
+                              {entry.bestMatch.matchScore}% Match
                             </Badge>
                           )}
                         </div>
@@ -585,7 +495,7 @@ export const WaitlistProcessor: React.FC = () => {
                         <div>
                           <div className="text-sm font-medium">Wait Time</div>
                           <div className="text-sm text-gray-600">
-                            {Math.round((Date.now() - new Date(entry.createdAt).getTime()) / (1000 * 60 * 60))}h
+                            {waitlistService.formatWaitingTime(entry.waitingHours)}
                           </div>
                         </div>
                       </div>
@@ -624,7 +534,7 @@ export const WaitlistProcessor: React.FC = () => {
                         )}
                         {entry.status === 'matched' && (
                           <>
-                            <Button size="sm" onClick={() => contactGuest(entry.id)}>
+                            <Button size="sm" onClick={() => contactGuest(entry._id)}>
                               Contact Guest
                             </Button>
                             <Button size="sm" variant="outline">
@@ -662,12 +572,12 @@ export const WaitlistProcessor: React.FC = () => {
               <CardContent>
                 <div className="space-y-4">
                   {matches.map((match) => {
-                    const entry = waitlist.find(e => e.id === match.waitlistEntryId);
+                    const entry = waitlist.find(e => e._id === match.waitlistEntryId);
                     return (
                       <div key={match.waitlistEntryId} className="border rounded-lg p-4 space-y-3">
                         <div className="flex items-start justify-between">
                           <div>
-                            <div className="font-semibold text-lg">{entry?.guestName}</div>
+                            <div className="font-semibold text-lg">{entry?.guestInfo.name}</div>
                             <div className="text-sm text-gray-600">
                               Matched with Room {match.roomNumber} ({match.roomType})
                             </div>
@@ -724,7 +634,7 @@ export const WaitlistProcessor: React.FC = () => {
                           {match.recommendedAction === 'auto_confirm' && (
                             <Button
                               size="sm"
-                              onClick={() => confirmMatch(match.waitlistEntryId)}
+                              onClick={() => confirmMatch(match.waitlistEntryId, match._id)}
                               className="bg-green-600 hover:bg-green-700"
                             >
                               Auto Confirm
@@ -739,7 +649,7 @@ export const WaitlistProcessor: React.FC = () => {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => declineMatch(match.waitlistEntryId)}
+                            onClick={() => declineMatch(match.waitlistEntryId, match._id)}
                           >
                             Decline Match
                           </Button>
@@ -908,6 +818,8 @@ export const WaitlistProcessor: React.FC = () => {
             </Card>
           </TabsContent>
         </Tabs>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

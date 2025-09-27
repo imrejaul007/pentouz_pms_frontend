@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 const API_BASE_URL = import.meta.env.VITE_API_URL ||
   (import.meta.env.MODE === 'production'
     ? 'https://hotel-management-xcsx.onrender.com/api/v1'  // Your deployed backend URL
-    : 'http://localhost:4002/api/v1');  // Use test server that works
+    : 'http://localhost:4000/api/v1');  // Use correct backend port
 
 // Create axios instance
 const api = axios.create({
@@ -189,6 +189,25 @@ export const apiManagementApi = {
 
   // API Documentation
   getAPIDocumentation: () => api.get('/api-management/documentation'),
+};
+
+// Generic API request function used by hooks
+export const apiRequest = async (url: string, options?: {
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  body?: string;
+  headers?: Record<string, string>;
+}) => {
+  const { method = 'GET', body, headers } = options || {};
+
+  const config = {
+    method,
+    url,
+    ...(body && { data: JSON.parse(body) }),
+    ...(headers && { headers: { ...api.defaults.headers.common, ...headers } })
+  };
+
+  const response = await api.request(config);
+  return response.data;
 };
 
 export { api };

@@ -58,13 +58,16 @@ export default function NotificationsDashboard() {
   const queryClient = useQueryClient();
   const { connectionState, connect, disconnect, on, off } = useRealTime();
 
-  // Real-time WebSocket connection setup
+  // Real-time WebSocket connection setup - FIXED: Don't disconnect singleton service
   useEffect(() => {
-    connect();
+    connect().catch(error => {
+      console.error('[NotificationsDashboard] WebSocket connection failed:', error);
+    });
     return () => {
-      disconnect();
+      console.log('[NotificationsDashboard] Component unmounting, keeping singleton connection active');
+      // Don't disconnect on unmount as other components may be using the same connection
     };
-  }, [connect, disconnect]);
+  }, [connect]);
 
   // Real-time event listeners for notifications
   useEffect(() => {

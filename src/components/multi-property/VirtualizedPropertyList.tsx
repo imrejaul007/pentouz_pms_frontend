@@ -148,8 +148,8 @@ export const VirtualizedPropertyList: React.FC<VirtualizedPropertyListProps> = (
   searchTerm = '',
   statusFilter = 'all',
   typeFilter = 'all',
-  itemHeight = 280,
-  containerHeight = 600
+  itemHeight = 240,
+  containerHeight = 500
 }) => {
   // Filter properties based on search and filters
   const filteredProperties = useMemo(() => {
@@ -191,57 +191,56 @@ export const VirtualizedPropertyList: React.FC<VirtualizedPropertyListProps> = (
           height: `${virtualItem.size}px`,
           transform: `translateY(${virtualItem.start}px)`,
         }}
-        className="px-2 py-2"
+        className="px-3 py-2"
       >
-        <Card className="h-full hover:shadow-lg transition-shadow duration-200">
-          <CardHeader className="pb-3">
+        <Card className="h-full border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 bg-white cursor-pointer overflow-hidden"
+              onClick={() => onPropertySelect(property)}>
+          {/* Header Section - Compact */}
+          <CardHeader className="pb-3 pt-4 px-4">
             <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <Building2 className="h-5 w-5 text-blue-600" />
-                  <CardTitle className="text-lg">{property.name}</CardTitle>
-                  <Badge variant="outline" className="capitalize">
-                    {property.type}
-                  </Badge>
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Building2 className="h-4 w-4 text-white" />
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                  <MapPin className="h-4 w-4" />
-                  <span>{property.location.city}, {property.location.country}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="font-medium">{property.brand}</span>
-                  <div className="flex items-center gap-1">
-                    <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                    <span>{property.rating}</span>
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-base font-semibold text-gray-900 truncate">{property.name}</CardTitle>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline" className="text-xs bg-gray-100 text-gray-700 border-gray-200 capitalize px-2 py-0">
+                      {property.type}
+                    </Badge>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-3 w-3 text-yellow-500 fill-current" />
+                      <span className="text-xs text-gray-600">{property.rating}</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Badge className={`${getStatusColor(property.status)} border`}>
+              <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+                <Badge className={`${getStatusColor(property.status)} border text-xs font-medium px-2 py-1`}>
                   {getStatusIcon(property.status)}
                   <span className="ml-1 capitalize">{property.status}</span>
                 </Badge>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <MoreVertical className="h-4 w-4" />
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => e.stopPropagation()}>
+                      <MoreVertical className="h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onPropertySelect(property)}>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onPropertySelect(property); }}>
                       <Eye className="mr-2 h-4 w-4" />
                       View Details
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => onPropertyEdit(property)}>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onPropertyEdit(property); }}>
                       <Edit className="mr-2 h-4 w-4" />
                       Edit Property
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      className="text-red-600"
-                      onClick={() => onPropertyDelete(property.id)}
+                      className="text-red-600 focus:text-red-600"
+                      onClick={(e) => { e.stopPropagation(); onPropertyDelete(property.id); }}
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
                       Delete Property
@@ -250,106 +249,117 @@ export const VirtualizedPropertyList: React.FC<VirtualizedPropertyListProps> = (
                 </DropdownMenu>
               </div>
             </div>
+
+            {/* Location & Brand */}
+            <div className="flex items-center gap-4 text-sm text-gray-600 mt-2">
+              <div className="flex items-center gap-1">
+                <MapPin className="h-3 w-3 text-gray-400" />
+                <span className="truncate">{property.location.city}, {property.location.country}</span>
+              </div>
+              <span className="text-gray-400">•</span>
+              <span className="font-medium text-gray-700">{property.brand}</span>
+            </div>
           </CardHeader>
 
-          <CardContent className="space-y-4">
-            {/* Room Statistics */}
-            <div className="grid grid-cols-4 gap-3 text-center">
-              <div>
+          <CardContent className="px-4 pb-4 space-y-4">
+            {/* Room Statistics - Compact Grid */}
+            <div className="grid grid-cols-4 gap-3">
+              <div className="text-center p-2 bg-blue-50 rounded-lg">
                 <div className="text-lg font-bold text-blue-600">{property.rooms.total}</div>
-                <div className="text-xs text-muted-foreground">Total Rooms</div>
+                <div className="text-xs text-blue-600 font-medium">Total</div>
               </div>
-              <div>
+              <div className="text-center p-2 bg-green-50 rounded-lg">
                 <div className="text-lg font-bold text-green-600">{property.rooms.occupied}</div>
-                <div className="text-xs text-muted-foreground">Occupied</div>
+                <div className="text-xs text-green-600 font-medium">Occupied</div>
               </div>
-              <div>
+              <div className="text-center p-2 bg-orange-50 rounded-lg">
                 <div className="text-lg font-bold text-orange-600">{property.rooms.available}</div>
-                <div className="text-xs text-muted-foreground">Available</div>
+                <div className="text-xs text-orange-600 font-medium">Available</div>
               </div>
-              <div>
+              <div className="text-center p-2 bg-red-50 rounded-lg">
                 <div className="text-lg font-bold text-red-600">{property.rooms.outOfOrder}</div>
-                <div className="text-xs text-muted-foreground">Maintenance</div>
+                <div className="text-xs text-red-600 font-medium">Maintenance</div>
               </div>
             </div>
 
-            {/* Performance Metrics */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Occupancy</span>
-                  <div className="flex items-center gap-1">
-                    <span className="font-medium">{property.performance.occupancyRate}%</span>
-                    {getPerformanceIndicator(property.performance.occupancyRate, property.performance.lastMonth.occupancyRate)}
-                  </div>
+            {/* Performance Metrics - Compact Layout */}
+            <div className="grid grid-cols-4 gap-3">
+              <div className="flex flex-col items-center justify-center p-2 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-semibold text-gray-900">{property.performance.occupancyRate}%</span>
+                  {getPerformanceIndicator(property.performance.occupancyRate, property.performance.lastMonth.occupancyRate)}
                 </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">ADR</span>
-                  <div className="flex items-center gap-1">
-                    <span className="font-medium">₹{property.performance.adr}</span>
-                    {getPerformanceIndicator(property.performance.adr, property.performance.lastMonth.adr)}
-                  </div>
-                </div>
+                <span className="text-xs text-gray-600">Occupancy</span>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">RevPAR</span>
-                  <div className="flex items-center gap-1">
-                    <span className="font-medium">₹{property.performance.revpar}</span>
-                    {getPerformanceIndicator(property.performance.revpar, property.performance.lastMonth.revpar)}
-                  </div>
+              <div className="flex flex-col items-center justify-center p-2 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-semibold text-gray-900">₹{property.performance.revpar.toFixed(0)}</span>
+                  {getPerformanceIndicator(property.performance.revpar, property.performance.lastMonth.revpar)}
                 </div>
+                <span className="text-xs text-gray-600">RevPAR</span>
+              </div>
 
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Revenue</span>
-                  <div className="flex items-center gap-1">
-                    <span className="font-medium">₹{(property.performance.revenue / 1000).toFixed(0)}K</span>
-                    {getPerformanceIndicator(property.performance.revenue, property.performance.lastMonth.revenue)}
-                  </div>
+              <div className="flex flex-col items-center justify-center p-2 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-semibold text-gray-900">₹{property.performance.adr}</span>
+                  {getPerformanceIndicator(property.performance.adr, property.performance.lastMonth.adr)}
                 </div>
+                <span className="text-xs text-gray-600">ADR</span>
+              </div>
+
+              <div className="flex flex-col items-center justify-center p-2 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-semibold text-gray-900">₹{(property.performance.revenue / 1000).toFixed(0)}K</span>
+                  {getPerformanceIndicator(property.performance.revenue, property.performance.lastMonth.revenue)}
+                </div>
+                <span className="text-xs text-gray-600">Revenue</span>
               </div>
             </div>
 
-            {/* Amenities */}
-            <div>
-              <div className="text-sm text-muted-foreground mb-2">Key Features</div>
-              <div className="flex flex-wrap gap-2">
+            {/* Key Features - Fixed Height to Prevent Overlap */}
+            <div className="min-h-[2.5rem]">
+              <div className="text-sm text-gray-600 font-medium mb-2">Key Features</div>
+              <div className="flex flex-wrap gap-1">
                 {Object.entries(property.features)
                   .filter(([, enabled]) => enabled)
-                  .slice(0, 6)
+                  .slice(0, 4)
                   .map(([feature]) => {
                     const IconComponent = amenityIcons[feature] || Star;
                     return (
-                      <div key={feature} className="flex items-center gap-1 px-2 py-1 bg-muted rounded-md text-xs">
+                      <div key={feature} className="flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-full text-xs text-gray-700">
                         <IconComponent className="h-3 w-3" />
                         <span className="capitalize">{feature.replace(/([A-Z])/g, ' $1').trim()}</span>
                       </div>
                     );
                   })}
+                {Object.entries(property.features).filter(([, enabled]) => enabled).length > 4 && (
+                  <div className="flex items-center px-2 py-1 bg-gray-100 rounded-full text-xs text-gray-700">
+                    +{Object.entries(property.features).filter(([, enabled]) => enabled).length - 4} more
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Contact Information */}
-            <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
-              <div className="flex items-center gap-4">
+            {/* Bottom Footer - Compact */}
+            <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-100">
+              <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1">
                   <User className="h-3 w-3" />
-                  <span>{property.contact.manager}</span>
+                  <span className="truncate max-w-20">{property.contact.manager}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Phone className="h-3 w-3" />
-                  <span>{property.contact.phone}</span>
+                  <span className="truncate max-w-20">{property.contact.phone}</span>
                 </div>
               </div>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onPropertySelect(property)}
-                className="h-7 px-3 text-xs"
+                onClick={(e) => { e.stopPropagation(); onPropertySelect(property); }}
+                className="h-6 px-3 text-xs border-gray-200 hover:bg-gray-50"
               >
-                View Details
+                Details
               </Button>
             </div>
           </CardContent>
@@ -360,29 +370,58 @@ export const VirtualizedPropertyList: React.FC<VirtualizedPropertyListProps> = (
 
   if (filteredProperties.length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-        <p>No properties found</p>
-        <p className="text-sm">Try adjusting your search or filters</p>
-      </div>
+      <Card className="border-0 shadow-sm">
+        <CardContent className="py-16">
+          <div className="text-center">
+            <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+              <Building2 className="h-12 w-12 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No properties found</h3>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              {searchTerm || statusFilter !== 'all' || typeFilter !== 'all' 
+                ? 'Try adjusting your search criteria or filters to find properties.'
+                : 'No properties have been added to your portfolio yet.'
+              }
+            </p>
+            {(searchTerm || statusFilter !== 'all' || typeFilter !== 'all') && (
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  // Reset filters - this would need to be passed as props
+                  window.location.reload(); // Temporary solution
+                }}
+                className="border-gray-300 hover:bg-gray-50"
+              >
+                Clear Filters
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Results Summary */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>Showing {filteredProperties.length} of {properties.length} properties</span>
-        {(searchTerm || statusFilter !== 'all' || typeFilter !== 'all') && (
-          <span>Filtered results</span>
-        )}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Showing {filteredProperties.length} of {properties.length} properties
+          </h3>
+          {(searchTerm || statusFilter !== 'all' || typeFilter !== 'all') && (
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+              Filtered results
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* Virtualized List Container */}
       <div
         ref={parentRef}
         style={{ height: `${containerHeight}px` }}
-        className="overflow-auto border rounded-lg"
+        className="overflow-auto border-0 rounded-xl bg-gray-50/50"
       >
         <div
           style={{

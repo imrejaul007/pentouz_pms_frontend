@@ -547,8 +547,8 @@ export default function AdminBookings() {
       header: 'Guest',
       render: (value: any) => (
         <div>
-          <div className="font-medium">{value.name}</div>
-          <div className="text-sm text-gray-500">{value.email}</div>
+          <div className="font-medium">{value?.name || 'Unknown Guest'}</div>
+          <div className="text-sm text-gray-500">{value?.email || 'No email'}</div>
         </div>
       )
     },
@@ -557,11 +557,11 @@ export default function AdminBookings() {
       header: 'Rooms',
       render: (value: any[]) => (
         <div className="space-y-1">
-          {value.map((room, index) => (
+          {value && Array.isArray(value) ? value.map((room, index) => (
             <div key={index} className="text-sm">
-              {room.roomId.roomNumber} ({room.roomId.type})
+              {room?.roomId?.roomNumber || 'Unknown Room'} ({room?.roomId?.type || 'Unknown Type'})
             </div>
-          ))}
+          )) : <div className="text-sm text-gray-500">No rooms</div>}
         </div>
       )
     },
@@ -570,7 +570,7 @@ export default function AdminBookings() {
       header: 'Check In',
       render: (value: string) => (
         <div className="text-sm">
-          {format(parseISO(value), 'MMM dd, yyyy')}
+          {value ? format(parseISO(value), 'MMM dd, yyyy') : 'No date'}
         </div>
       )
     },
@@ -579,7 +579,7 @@ export default function AdminBookings() {
       header: 'Check Out',
       render: (value: string) => (
         <div className="text-sm">
-          {format(parseISO(value), 'MMM dd, yyyy')}
+          {value ? format(parseISO(value), 'MMM dd, yyyy') : 'No date'}
         </div>
       )
     },
@@ -587,7 +587,7 @@ export default function AdminBookings() {
       key: 'nights',
       header: 'Nights',
       render: (value: number) => (
-        <span className="text-sm font-medium">{value}</span>
+        <span className="text-sm font-medium">{value || 0}</span>
       ),
       align: 'center' as const
     },
@@ -596,7 +596,7 @@ export default function AdminBookings() {
       header: 'Total',
       render: (value: number, row: AdminBooking) => (
         <div className="text-sm font-medium">
-          {formatCurrency(value, row.currency)}
+          {formatCurrency(value || 0, row?.currency || 'USD')}
         </div>
       ),
       align: 'right' as const

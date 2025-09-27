@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Home, Calendar, User, MessageSquare, Globe, Star, ConciergeBell, Bell, Key, Users, CreditCard, LogOut, Package, MessageCircle, X, BookOpen } from 'lucide-react';
+import { Home, Calendar, User, MessageSquare, Globe, Star, ConciergeBell, Bell, Key, Users, CreditCard, LogOut, Package, MessageCircle, X, BookOpen, FileText } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 const navigation = [
@@ -14,6 +14,7 @@ const navigation = [
   { name: 'Digital Keys', href: '/app/keys', icon: Key },
   { name: 'Meet-Ups', href: '/app/meet-ups', icon: Users },
   { name: 'Profile', href: '/app/profile', icon: User },
+  { name: 'Documents', href: '/app/documents', icon: FileText },
   { name: 'Requests', href: '/app/requests', icon: MessageSquare },
   { name: 'Inventory Requests', href: '/app/inventory-requests', icon: Package },
   { name: 'Feedback', href: '/app/feedback', icon: MessageCircle },
@@ -32,6 +33,7 @@ interface GuestSidebarProps {
 export default function GuestSidebar({ isOpen = false, onClose }: GuestSidebarProps) {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
+
 
   const handlePublicWebsiteClick = () => {
     navigate('/', { replace: true });

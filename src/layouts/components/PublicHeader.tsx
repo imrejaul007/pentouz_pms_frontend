@@ -20,6 +20,8 @@ export default function PublicHeader() {
   const handleDashboard = () => {
     if (user?.role === 'admin' || user?.role === 'staff') {
       navigate('/admin');
+    } else if (user?.role === 'travel_agent') {
+      navigate('/travel-agent');
     } else {
       navigate('/app');
     }

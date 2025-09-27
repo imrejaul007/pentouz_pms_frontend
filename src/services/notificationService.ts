@@ -204,6 +204,14 @@ export interface TestNotificationRequest {
 }
 
 class NotificationService {
+  private eventSource: EventSource | null = null;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 5;
+  private reconnectDelay = 1000;
+  private listeners: Map<string, Set<(notification: Notification) => void>> = new Map();
+  private browserNotificationEnabled = false;
+  private serviceWorkerRegistration: ServiceWorkerRegistration | null = null;
+
   // Get notifications with pagination and filters
   async getNotifications(params?: {
     page?: number;
@@ -239,6 +247,12 @@ class NotificationService {
   // Mark notification as read
   async markAsRead(id: string): Promise<void> {
     await api.patch(`/notifications/${id}/read`);
+    // Track read event
+    await this.trackNotificationEvent('read', {
+      notificationId: id,
+      channel: 'in_app',
+      metadata: { action: 'mark_as_read' }
+    });
   }
 
   // Mark multiple notifications as read
@@ -517,7 +531,8 @@ class NotificationService {
   }
 
   isUnread(notification: Notification): boolean {
-    return notification.status === 'sent' || notification.status === 'delivered';
+    // A notification is unread if it doesn't have a readAt timestamp
+    return !notification.readAt;
   }
 
   canMarkAsRead(notification: Notification): boolean {
@@ -526,6 +541,396 @@ class NotificationService {
 
   canDelete(notification: Notification): boolean {
     return true; // Users can delete any notification
+  }
+
+  // Connect to SSE stream for real-time notifications
+  connectToStream(token?: string) {
+    if (this.eventSource) {
+      this.eventSource.close();
+    }
+
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api/v1';
+    const url = `${baseUrl}/notifications/stream`;
+
+    this.eventSource = new EventSource(url, {
+      withCredentials: true
+    });
+
+    this.eventSource.onopen = () => {
+      console.log('Connected to notification stream');
+      this.reconnectAttempts = 0;
+      this.reconnectDelay = 1000;
+    };
+
+    this.eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'notification') {
+          this.handleNewNotification(data.data);
+        } else if (data.type === 'connection') {
+          console.log('Notification stream connected:', data.message);
+        }
+      } catch (error) {
+        console.error('Failed to parse notification data:', error);
+      }
+    };
+
+    this.eventSource.onerror = (error) => {
+      console.error('Notification stream error:', error);
+      this.eventSource?.close();
+
+      // Reconnect with exponential backoff
+      if (this.reconnectAttempts < this.maxReconnectAttempts) {
+        setTimeout(() => {
+          this.reconnectAttempts++;
+          this.reconnectDelay *= 2;
+          this.connectToStream(token);
+        }, this.reconnectDelay);
+      }
+    };
+  }
+
+  // Disconnect from SSE stream
+  disconnectStream() {
+    if (this.eventSource) {
+      this.eventSource.close();
+      this.eventSource = null;
+    }
+    this.listeners.clear();
+  }
+
+  // Handle new notification
+  private handleNewNotification(notification: Notification) {
+    // Notify all listeners
+    this.listeners.forEach(callbacks => {
+      callbacks.forEach(callback => callback(notification));
+    });
+
+    // Request browser notification permission if urgent
+    if (notification.priority === 'urgent' && 'Notification' in window) {
+      this.showBrowserNotification(notification);
+    }
+  }
+
+  // Show browser notification
+  private async showBrowserNotification(notification: Notification) {
+    if (Notification.permission === 'granted') {
+      new Notification(notification.title, {
+        body: notification.message,
+        icon: '/logo.png',
+        badge: '/badge.png',
+        tag: notification._id,
+        requireInteraction: notification.priority === 'urgent'
+      });
+    } else if (Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        this.showBrowserNotification(notification);
+      }
+    }
+  }
+
+  // Subscribe to notifications
+  subscribe(key: string, callback: (notification: Notification) => void) {
+    if (!this.listeners.has(key)) {
+      this.listeners.set(key, new Set());
+    }
+    this.listeners.get(key)!.add(callback);
+
+    // Return unsubscribe function
+    return () => {
+      const callbacks = this.listeners.get(key);
+      if (callbacks) {
+        callbacks.delete(callback);
+        if (callbacks.size === 0) {
+          this.listeners.delete(key);
+        }
+      }
+    };
+  }
+
+  // Request browser notification permission
+  async requestPermission(): Promise<NotificationPermission> {
+    if ('Notification' in window) {
+      return await Notification.requestPermission();
+    }
+    return 'denied';
+  }
+
+  // Get notification summary
+  async getSummary() {
+    const response = await api.get('/notifications/summary');
+    return response.data.data;
+  }
+
+  // Initialize browser notifications
+  async initializeBrowserNotifications(): Promise<boolean> {
+    try {
+      // Check if browser supports notifications
+      if (!('Notification' in window)) {
+        console.warn('Browser notifications not supported');
+        return false;
+      }
+
+      // Register service worker for advanced notification features
+      if ('serviceWorker' in navigator) {
+        this.serviceWorkerRegistration = await navigator.serviceWorker.register('/sw-notifications.js', {
+          scope: '/'
+        });
+        console.log('Notification service worker registered');
+      }
+
+      // Request permission if not already granted
+      if (Notification.permission === 'default') {
+        const permission = await Notification.requestPermission();
+        this.browserNotificationEnabled = permission === 'granted';
+      } else {
+        this.browserNotificationEnabled = Notification.permission === 'granted';
+      }
+
+      return this.browserNotificationEnabled;
+    } catch (error) {
+      console.error('Failed to initialize browser notifications:', error);
+      return false;
+    }
+  }
+
+  // Send browser notification
+  async sendBrowserNotification(notification: Notification): Promise<void> {
+    if (!this.browserNotificationEnabled) {
+      return;
+    }
+
+    // Don't show browser notification if page is visible and focused
+    if (document.visibilityState === 'visible' && document.hasFocus()) {
+      return;
+    }
+
+    try {
+      const typeInfo = this.getNotificationTypeInfo(notification.type);
+      const priorityInfo = this.getPriorityInfo(notification.priority);
+
+      const options: NotificationOptions = {
+        body: notification.message,
+        icon: this.getNotificationIcon(notification.type),
+        badge: '/badge-icon.png',
+        tag: `pentouz-${notification._id}`,
+        data: {
+          id: notification._id,
+          type: notification.type,
+          url: this.getNotificationUrl(notification),
+          timestamp: Date.now()
+        },
+        requireInteraction: notification.priority === 'urgent',
+        silent: false,
+        vibrate: [200, 100, 200]
+      };
+
+      // Add action buttons for certain notification types
+      if (notification.type === 'service_request' || notification.type === 'guest_request') {
+        options.actions = [
+          {
+            action: 'accept',
+            title: 'Accept'
+          },
+          {
+            action: 'view',
+            title: 'View Details'
+          }
+        ];
+      }
+
+      const browserNotification = new Notification(
+        `THE PENTOUZ - ${notification.title}`,
+        options
+      );
+
+      // Auto-close non-urgent notifications after 8 seconds
+      if (notification.priority !== 'urgent') {
+        setTimeout(() => {
+          browserNotification.close();
+        }, 8000);
+      }
+
+      // Handle notification click
+      browserNotification.onclick = () => {
+        window.focus();
+        const url = this.getNotificationUrl(notification);
+        if (url) {
+          window.location.href = url;
+        }
+        browserNotification.close();
+      };
+
+      // Track notification display
+      await this.trackNotificationEvent('delivered', {
+        notificationId: notification._id,
+        channel: 'browser',
+        metadata: {
+          category: notification.metadata?.category || 'general',
+          priority: notification.priority,
+          type: notification.type
+        }
+      });
+
+    } catch (error) {
+      console.error('Failed to send browser notification:', error);
+    }
+  }
+
+  // Get notification icon based on type
+  private getNotificationIcon(type: string): string {
+    const iconMap: Record<string, string> = {
+      booking_confirmation: '/icons/booking.png',
+      booking_reminder: '/icons/reminder.png',
+      payment_success: '/icons/payment.png',
+      payment_failed: '/icons/alert.png',
+      service_request: '/icons/service.png',
+      guest_request: '/icons/guest.png',
+      maintenance_alert: '/icons/maintenance.png',
+      inventory_alert: '/icons/inventory.png',
+      system_alert: '/icons/system.png',
+      check_in: '/icons/checkin.png',
+      check_out: '/icons/checkout.png',
+      promotional: '/icons/offer.png',
+      special_offer: '/icons/special.png'
+    };
+
+    return iconMap[type] || '/favicon.ico';
+  }
+
+  // Get notification URL for navigation
+  private getNotificationUrl(notification: Notification): string {
+    const urlMap: Record<string, string> = {
+      booking_confirmation: `/bookings/${notification.metadata?.bookingId}`,
+      booking_reminder: `/bookings/${notification.metadata?.bookingId}`,
+      payment_success: `/payments/${notification.metadata?.paymentId}`,
+      payment_failed: `/payments/${notification.metadata?.paymentId}`,
+      service_request: `/services/${notification.metadata?.serviceId}`,
+      guest_request: `/requests/${notification.metadata?.requestId}`,
+      maintenance_alert: `/maintenance/${notification.metadata?.maintenanceId}`,
+      inventory_alert: `/inventory`,
+      system_alert: `/admin/alerts`,
+      check_in: `/bookings/${notification.metadata?.bookingId}`,
+      check_out: `/bookings/${notification.metadata?.bookingId}`,
+      promotional: `/offers`,
+      special_offer: `/offers/${notification.metadata?.offerId}`
+    };
+
+    return urlMap[notification.type] || '/notifications';
+  }
+
+  // Track notification events for analytics
+  async trackNotificationEvent(
+    event: 'sent' | 'delivered' | 'read' | 'clicked' | 'dismissed' | 'failed',
+    options: {
+      notificationId?: string;
+      channel?: 'in_app' | 'browser' | 'email' | 'sms' | 'push';
+      metadata?: Record<string, any>;
+      deviceInfo?: Record<string, any>;
+    } = {}
+  ): Promise<void> {
+    try {
+      await api.post('/analytics/notification-events', {
+        event,
+        notificationId: options.notificationId,
+        channel: options.channel || 'in_app',
+        metadata: {
+          category: 'general',
+          priority: 'normal',
+          source: 'system',
+          ...options.metadata,
+          userAgent: navigator.userAgent,
+          url: window.location.href,
+          timestamp: Date.now()
+        },
+        deviceInfo: {
+          platform: navigator.platform,
+          isMobile: /mobile/i.test(navigator.userAgent),
+          browser: this.getBrowserInfo(),
+          ...options.deviceInfo
+        }
+      });
+    } catch (error) {
+      console.error('Failed to track notification event:', error);
+    }
+  }
+
+  // Get browser information
+  private getBrowserInfo(): string {
+    const ua = navigator.userAgent;
+    if (ua.includes('Chrome')) return 'Chrome';
+    if (ua.includes('Firefox')) return 'Firefox';
+    if (ua.includes('Safari')) return 'Safari';
+    if (ua.includes('Edge')) return 'Edge';
+    return 'Unknown';
+  }
+
+  // Enhanced notification handler with browser notifications
+  private handleNewNotification = (notification: Notification): void => {
+    // Trigger browser notification
+    this.sendBrowserNotification(notification);
+
+    // Continue with existing logic
+    this.listeners.get('new')?.forEach(listener => {
+      try {
+        listener(notification);
+      } catch (error) {
+        console.error('Error in notification listener:', error);
+      }
+    });
+  };
+
+  // Get notification preferences from user settings
+  async getNotificationPreferences(): Promise<any> {
+    try {
+      const response = await api.get('/user-preferences/notifications');
+      return response.data.data.notifications;
+    } catch (error) {
+      console.error('Failed to get notification preferences:', error);
+      return {
+        channels: { inApp: true, email: true, sms: false, push: true },
+        sound: true,
+        desktop: true
+      };
+    }
+  }
+
+  // Update notification preferences
+  async updateNotificationPreferences(preferences: any): Promise<void> {
+    try {
+      await api.put('/user-preferences/notifications', preferences);
+
+      // Update browser notification enabled state
+      this.browserNotificationEnabled = preferences.channels?.push || false;
+    } catch (error) {
+      console.error('Failed to update notification preferences:', error);
+    }
+  }
+
+  // Clear all browser notifications
+  clearAllBrowserNotifications(): void {
+    if (this.serviceWorkerRegistration) {
+      this.serviceWorkerRegistration.getNotifications().then(notifications => {
+        notifications.forEach(notification => {
+          if (notification.tag?.startsWith('pentouz-')) {
+            notification.close();
+          }
+        });
+      });
+    }
+  }
+
+  // Schedule a browser notification for later
+  async scheduleNotification(notification: Notification, delay: number): Promise<void> {
+    if (!this.browserNotificationEnabled) {
+      return;
+    }
+
+    setTimeout(() => {
+      this.sendBrowserNotification(notification);
+    }, delay);
   }
 }
 

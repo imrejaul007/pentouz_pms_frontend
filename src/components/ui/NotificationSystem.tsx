@@ -221,7 +221,12 @@ const NotificationSystem: React.FC<NotificationSystemProps> = ({
 
   const playNotificationSound = () => {
     if (audioRef.current) {
-      audioRef.current.play().catch(console.error);
+      audioRef.current.play().catch((error) => {
+        // Silently handle audio play failures (user interaction required)
+        if (error.name !== 'NotAllowedError') {
+          console.error('Audio play error:', error);
+        }
+      });
     }
   };
 

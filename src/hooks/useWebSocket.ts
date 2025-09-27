@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { API_CONFIG } from '../config/api';
+import { realTimeService, useRealTime } from '../services/realTimeService';
 
 export interface WebSocketMessage {
   type: string;
@@ -32,165 +33,54 @@ export function useWebSocket(options: WebSocketHookOptions = {}) {
     onError
   } = options;
 
-  const [isConnected, setIsConnected] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
+  // Use the centralized realTimeService instead of creating individual connections
+  const realTimeHook = useRealTime();
+
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
 
-  const ws = useRef<WebSocket | null>(null);
+  // Legacy refs for compatibility (no longer used for WebSocket connections)
   const reconnectCount = useRef(0);
-  const reconnectTimer = useRef<NodeJS.Timeout | null>(null);
-  const heartbeatTimer = useRef<NodeJS.Timeout | null>(null);
 
-  const getWebSocketUrl = useCallback(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = process.env.NODE_ENV === 'production' 
-      ? window.location.host 
-      : API_CONFIG.WS_URL.replace(/^ws[s]?:\/\//, '');
-    const token = localStorage.getItem('token');
-    
-    return `${protocol}//${host}/ws/notifications?token=${token}`;
-  }, []);
+  // Map realTimeService connection states to useWebSocket API
+  const isConnected = realTimeHook.connectionState === 'connected';
+  const isConnecting = realTimeHook.connectionState === 'connecting';
 
-  const connect = useCallback(() => {
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      return; // Already connected
-    }
-
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setConnectionError('No authentication token found');
-      return;
-    }
-
-    setIsConnecting(true);
-    setConnectionError(null);
-
+  const connect = useCallback(async () => {
     try {
-      ws.current = new WebSocket(getWebSocketUrl());
-
-      ws.current.onopen = () => {
-        console.log('WebSocket connected');
-        setIsConnected(true);
-        setIsConnecting(false);
-        setConnectionError(null);
-        reconnectCount.current = 0;
-        onConnect?.();
-
-        // Start heartbeat
-        startHeartbeat();
-      };
-
-      ws.current.onmessage = (event) => {
-        try {
-          const message: WebSocketMessage = JSON.parse(event.data);
-          setLastMessage(message);
-          onMessage?.(message);
-
-          // Handle different message types
-          switch (message.type) {
-            case 'notification':
-            case 'admin_notification':
-              handleNotification(message);
-              break;
-            case 'pong':
-              // Heartbeat response, connection is alive
-              break;
-            default:
-              console.log('Received WebSocket message:', message);
-          }
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
-
-      ws.current.onclose = (event) => {
-        console.log('WebSocket disconnected:', event.code, event.reason);
-        setIsConnected(false);
-        setIsConnecting(false);
-        stopHeartbeat();
-        onDisconnect?.();
-
-        // Attempt reconnection if not a clean close
-        if (event.code !== 1000 && reconnectCount.current < maxReconnectAttempts) {
-          scheduleReconnect();
-        }
-      };
-
-      ws.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setConnectionError('Connection failed');
-        setIsConnecting(false);
-        onError?.(error);
-      };
-
+      await realTimeHook.connect();
+      setConnectionError(null);
+      onConnect?.();
     } catch (error) {
-      console.error('Error creating WebSocket connection:', error);
-      setIsConnecting(false);
-      setConnectionError('Failed to create connection');
+      setConnectionError(error instanceof Error ? error.message : 'Connection failed');
+      onError?.(error as Event);
     }
-  }, [getWebSocketUrl, onMessage, onConnect, onDisconnect, onError, maxReconnectAttempts]);
+  }, [realTimeHook.connect, onConnect, onError]);
 
   const disconnect = useCallback(() => {
-    stopHeartbeat();
-    clearReconnectTimer();
-    
-    if (ws.current) {
-      ws.current.close(1000, 'User disconnected');
-      ws.current = null;
-    }
-    
-    setIsConnected(false);
-    setIsConnecting(false);
-  }, []);
+    realTimeHook.disconnect();
+    onDisconnect?.();
+  }, [realTimeHook.disconnect, onDisconnect]);
 
   const send = useCallback((message: any) => {
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify(message));
+    if (isConnected) {
+      // Convert useWebSocket message format to realTimeService format
+      if (message.type === 'ping') {
+        // realTimeService handles heartbeats internally
+        return true;
+      }
+
+      // For other message types, emit through realTimeService
+      realTimeService.emit('message', message);
       return true;
     }
     console.warn('WebSocket not connected, cannot send message:', message);
     return false;
-  }, []);
-
-  const scheduleReconnect = useCallback(() => {
-    clearReconnectTimer();
-    reconnectCount.current++;
-    
-    console.log(`Scheduling reconnect attempt ${reconnectCount.current}/${maxReconnectAttempts} in ${reconnectInterval}ms`);
-    
-    reconnectTimer.current = setTimeout(() => {
-      connect();
-    }, reconnectInterval);
-  }, [connect, reconnectInterval, maxReconnectAttempts]);
-
-  const clearReconnectTimer = useCallback(() => {
-    if (reconnectTimer.current) {
-      clearTimeout(reconnectTimer.current);
-      reconnectTimer.current = null;
-    }
-  }, []);
-
-  const startHeartbeat = useCallback(() => {
-    stopHeartbeat();
-    
-    heartbeatTimer.current = setInterval(() => {
-      if (ws.current?.readyState === WebSocket.OPEN) {
-        send({ type: 'ping' });
-      }
-    }, 30000); // Send ping every 30 seconds
-  }, [send]);
-
-  const stopHeartbeat = useCallback(() => {
-    if (heartbeatTimer.current) {
-      clearInterval(heartbeatTimer.current);
-      heartbeatTimer.current = null;
-    }
-  }, []);
+  }, [isConnected]);
 
   const handleNotification = useCallback((message: WebSocketMessage) => {
     const { data } = message;
-    
+
     if (data) {
       // Show toast notification for real-time updates
       const toastOptions = {
@@ -225,6 +115,40 @@ export function useWebSocket(options: WebSocketHookOptions = {}) {
     }
   }, []);
 
+  // Set up event listeners for realTimeService events
+  useEffect(() => {
+    const handleRealTimeEvent = (eventData: any) => {
+      // Convert realTimeService event format to useWebSocket message format
+      const message: WebSocketMessage = {
+        type: eventData.type || 'notification',
+        data: eventData.data || eventData,
+        timestamp: eventData.timestamp || new Date().toISOString(),
+        userId: eventData.userId,
+        role: eventData.role
+      };
+
+      setLastMessage(message);
+      onMessage?.(message);
+
+      // Handle different message types
+      switch (message.type) {
+        case 'notification':
+        case 'admin_notification':
+          handleNotification(message);
+          break;
+        default:
+          console.log('Received real-time event:', message);
+      }
+    };
+
+    // Listen to all real-time events
+    realTimeService.on('*', handleRealTimeEvent);
+
+    return () => {
+      realTimeService.off('*', handleRealTimeEvent);
+    };
+  }, [onMessage, handleNotification]);
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'urgent': return '#dc2626';
@@ -257,20 +181,18 @@ export function useWebSocket(options: WebSocketHookOptions = {}) {
     }
   };
 
-  // WebSocket methods
+  // WebSocket methods - adapted for realTimeService
   const subscribe = useCallback((channels: string[]) => {
-    send({
-      type: 'subscribe',
-      channels
+    channels.forEach(channel => {
+      realTimeService.subscribe(channel);
     });
-  }, [send]);
+  }, []);
 
   const markNotificationsRead = useCallback((notificationIds: string[]) => {
-    send({
-      type: 'mark_read',
-      notificationIds
-    });
-  }, [send]);
+    // This functionality would need to be handled at the API level
+    // For now, just emit an event that can be handled by components
+    realTimeService.emit('markNotificationsRead', { notificationIds });
+  }, []);
 
   // Auto-connect on mount if enabled
   useEffect(() => {
@@ -278,20 +200,19 @@ export function useWebSocket(options: WebSocketHookOptions = {}) {
       connect();
     }
 
-    return () => {
-      disconnect();
-    };
-  }, [autoConnect, connect, disconnect]);
+    // Don't disconnect on unmount since realTimeService is shared
+    // Components will share the same connection
+  }, [autoConnect, connect]);
 
-  // Reconnect when token changes
+  // Handle token changes
   useEffect(() => {
-    if (isConnected) {
+    const token = localStorage.getItem('token');
+    if (token && !isConnected && autoConnect) {
+      connect();
+    } else if (!token && isConnected) {
       disconnect();
-      if (autoConnect) {
-        setTimeout(connect, 100);
-      }
     }
-  }, [localStorage.getItem('token')]);
+  }, [localStorage.getItem('token'), isConnected, autoConnect, connect, disconnect]);
 
   return {
     isConnected,
@@ -303,7 +224,7 @@ export function useWebSocket(options: WebSocketHookOptions = {}) {
     send,
     subscribe,
     markNotificationsRead,
-    reconnectCount: reconnectCount.current
+    reconnectCount: realTimeHook.reconnectAttempts
   };
 }
 

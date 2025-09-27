@@ -1502,19 +1502,27 @@ export default function AdminRooms() {
                 count: metrics?.availableRooms || 0,
                 percentage: metrics?.totalRooms ? ((metrics.availableRooms / metrics.totalRooms) * 100).toFixed(1) : '0'
               },
-              { 
-                color: 'bg-gradient-to-r from-red-400 to-red-600', 
+              {
+                color: 'bg-gradient-to-r from-red-400 to-red-600',
                 borderColor: 'border-red-500',
                 icon: '👥',
-                label: 'Occupied', 
+                label: 'Occupied',
                 count: metrics?.occupiedRooms || 0,
                 percentage: metrics?.totalRooms ? ((metrics.occupiedRooms / metrics.totalRooms) * 100).toFixed(1) : '0'
               },
-              { 
-                color: 'bg-gradient-to-r from-yellow-400 to-yellow-600', 
+              {
+                color: 'bg-gradient-to-r from-purple-400 to-purple-600',
+                borderColor: 'border-purple-500',
+                icon: '📅',
+                label: 'Reserved',
+                count: filteredRooms.filter(r => getRoomStatus(r) === 'reserved').length || 0,
+                percentage: metrics?.totalRooms ? ((filteredRooms.filter(r => getRoomStatus(r) === 'reserved').length / metrics.totalRooms) * 100).toFixed(1) : '0'
+              },
+              {
+                color: 'bg-gradient-to-r from-yellow-400 to-yellow-600',
                 borderColor: 'border-yellow-500',
                 icon: '🧹',
-                label: 'Dirty / Cleaning', 
+                label: 'Dirty / Cleaning',
                 count: metrics?.dirtyRooms || 0,
                 percentage: metrics?.totalRooms ? ((metrics.dirtyRooms / metrics.totalRooms) * 100).toFixed(1) : '0'
               },
@@ -1626,7 +1634,7 @@ export default function AdminRooms() {
                           'relative aspect-square rounded-xl border-2 cursor-pointer transition-all duration-300',
                           getRoomStatus(room) === 'vacant' ? 'bg-green-500 border-green-600 hover:bg-green-600' :
                           getRoomStatus(room) === 'occupied' ? 'bg-red-500 border-red-600 hover:bg-red-600' :
-                          getRoomStatus(room) === 'reserved' ? 'bg-orange-500 border-orange-600 hover:bg-orange-600' :
+                          getRoomStatus(room) === 'reserved' ? 'bg-purple-500 border-purple-600 hover:bg-purple-600' :
                           getRoomStatus(room) === 'dirty' ? 'bg-yellow-500 border-yellow-600 hover:bg-yellow-600' :
                           getRoomStatus(room) === 'maintenance' ? 'bg-orange-500 border-orange-600 hover:bg-orange-600' :
                           getRoomStatus(room) === 'out_of_order' ? 'bg-gray-500 border-gray-600 hover:bg-gray-600' :
@@ -1675,6 +1683,7 @@ export default function AdminRooms() {
                     <div className="flex space-x-4 text-xs">
                       <span className="text-green-600">Available: {floor.available}</span>
                       <span className="text-red-600">Occupied: {floor.occupied}</span>
+                      <span className="text-purple-600">Reserved: {floorRooms.filter(r => getRoomStatus(r) === 'reserved').length}</span>
                       <span className="text-yellow-600">Cleaning: {floor.dirty}</span>
                       <span className="text-orange-600">Maintenance: {floor.maintenance}</span>
                       <span className="text-gray-600">OOO: {floor.outOfOrder}</span>

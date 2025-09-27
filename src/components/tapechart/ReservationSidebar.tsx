@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import DraggableReservation from './DraggableReservation';
-import { Search, Filter, Users, Clock, Star, CheckSquare, Square, Zap } from 'lucide-react';
+import { Search, Filter, Users, Clock, Star, CheckSquare, Square, Zap, ChevronLeft, ChevronRight, Hotel, UserPlus, CalendarCheck } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { bookingService } from '@/services/bookingService';
 import { dragDropManager } from '@/utils/DragDropManager';
@@ -45,6 +46,8 @@ interface ReservationSidebarProps {
   isCompact?: boolean;
   className?: string;
   refreshTrigger?: number; // Add refresh trigger prop
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 const ReservationSidebar: React.FC<ReservationSidebarProps> = ({
@@ -52,7 +55,9 @@ const ReservationSidebar: React.FC<ReservationSidebarProps> = ({
   selectedDate,
   isCompact = false,
   className,
-  refreshTrigger
+  refreshTrigger,
+  isCollapsed = false,
+  onToggleCollapse
 }) => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [filteredReservations, setFilteredReservations] = useState<Reservation[]>([]);
@@ -257,16 +262,142 @@ const ReservationSidebar: React.FC<ReservationSidebarProps> = ({
     // TODO: Implement bulk assignment logic
   };
 
+  // Render collapsed state with icons only
+  if (isCollapsed) {
+    return (
+      <TooltipProvider>
+        <Card className={cn(
+          'h-full flex flex-col transition-all duration-300 w-16 bg-gradient-to-b from-white to-gray-50 border-r-2 border-gray-200 shadow-lg',
+          className
+        )}>
+          <div className="p-2 space-y-4">
+            {/* Toggle button */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onToggleCollapse}
+                  className="w-full h-10 p-0 hover:bg-blue-50 transition-colors"
+                >
+                  <ChevronRight className="w-5 h-5 text-blue-600" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>Expand Sidebar</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Quick stats icons */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full h-10 p-0 hover:bg-red-50 transition-colors"
+                  >
+                    <Hotel className="w-5 h-5 text-red-600" />
+                  </Button>
+                  {unassignedCount > 0 && (
+                    <Badge className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1 bg-red-600 text-white text-xs">
+                      {unassignedCount}
+                    </Badge>
+                  )}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>{unassignedCount} Unassigned Reservations</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full h-10 p-0 hover:bg-green-50 transition-colors"
+                  >
+                    <CalendarCheck className="w-5 h-5 text-green-600" />
+                  </Button>
+                  {assignedCount > 0 && (
+                    <Badge className="absolute -top-1 -right-1 h-5 min-w-[20px] px-1 bg-green-600 text-white text-xs">
+                      {assignedCount}
+                    </Badge>
+                  )}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>{assignedCount} Assigned Reservations</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-10 p-0 hover:bg-blue-50 transition-colors"
+                  onClick={() => setViewMode(viewMode === 'all' ? 'unassigned' : 'all')}
+                >
+                  <Users className="w-5 h-5 text-blue-600" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>{reservations.length} Total Reservations</p>
+              </TooltipContent>
+            </Tooltip>
+
+            {/* Add more icon shortcuts as needed */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-10 p-0 hover:bg-purple-50 transition-colors"
+                  onClick={handleSelectionModeToggle}
+                >
+                  {selectionMode ? (
+                    <CheckSquare className="w-5 h-5 text-purple-600" />
+                  ) : (
+                    <Square className="w-5 h-5 text-purple-600" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                <p>{selectionMode ? 'Disable' : 'Enable'} Selection Mode</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </Card>
+      </TooltipProvider>
+    );
+  }
+
   return (
-    <Card className={cn('h-full flex flex-col', className)}>
-      <CardHeader className={cn('pb-3', isCompact && 'p-3')}>
+    <Card className={cn(
+      'h-full flex flex-col transition-all duration-300 bg-gradient-to-b from-white to-gray-50 border-r-2 border-gray-200 shadow-lg',
+      className
+    )}>
+      <CardHeader className={cn('pb-3 bg-white border-b border-gray-200', isCompact && 'p-3')}>
         <CardTitle className={cn(
           'flex items-center justify-between',
           isCompact ? 'text-sm' : 'text-base'
         )}>
           <div className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            <span>Reservations</span>
+            {onToggleCollapse && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onToggleCollapse}
+                className="p-0 h-6 w-6 hover:bg-gray-100"
+              >
+                <ChevronLeft className="w-4 h-4 text-gray-600" />
+              </Button>
+            )}
+            <Hotel className="w-4 h-4 text-blue-600" />
+            <span className="font-semibold text-gray-800">Reservations</span>
             {selectionMode && selectedCount > 0 && (
               <Badge variant="secondary" className="bg-blue-100 text-blue-800">
                 {selectedCount} selected
@@ -274,7 +405,7 @@ const ReservationSidebar: React.FC<ReservationSidebarProps> = ({
             )}
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline">
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
               {filteredReservations.length}/{reservations.length}
             </Badge>
             <Button
@@ -334,28 +465,37 @@ const ReservationSidebar: React.FC<ReservationSidebarProps> = ({
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="text-center p-2 bg-red-50 rounded">
-              <div className="font-medium text-red-700">{unassignedCount}</div>
-              <div className="text-red-600">Unassigned</div>
+          <div className="grid grid-cols-2 gap-2 text-xs mt-3">
+            <div className="text-center p-2.5 bg-gradient-to-br from-red-50 to-red-100 rounded-lg border border-red-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+              <div className="font-bold text-lg text-red-700">{unassignedCount}</div>
+              <div className="text-red-600 font-medium flex items-center justify-center gap-1">
+                <Hotel className="w-3 h-3" />
+                Unassigned
+              </div>
             </div>
-            <div className="text-center p-2 bg-green-50 rounded">
-              <div className="font-medium text-green-700">{assignedCount}</div>
-              <div className="text-green-600">Assigned</div>
+            <div className="text-center p-2.5 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+              <div className="font-bold text-lg text-green-700">{assignedCount}</div>
+              <div className="text-green-600 font-medium flex items-center justify-center gap-1">
+                <CalendarCheck className="w-3 h-3" />
+                Assigned
+              </div>
             </div>
           </div>
         )}
       </CardHeader>
       
-      <CardContent className={cn('flex-1 flex flex-col gap-3 overflow-hidden', isCompact && 'p-3 pt-0')}>
+      <CardContent className={cn('flex-1 flex flex-col gap-3 overflow-hidden bg-transparent', isCompact && 'p-3 pt-0')}>
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-blue-500" />
           <Input
             placeholder="Search reservations..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className={cn('pl-8', isCompact && 'text-sm h-8')}
+            className={cn(
+              'pl-10 bg-white border-gray-300 focus:border-blue-400 focus:ring-blue-400 shadow-sm',
+              isCompact && 'text-sm h-8'
+            )}
           />
         </div>
         
@@ -394,26 +534,32 @@ const ReservationSidebar: React.FC<ReservationSidebarProps> = ({
             size="sm"
             onClick={() => setViewMode('unassigned')}
             className={cn(
-              isCompact ? 'text-xs h-7' : 'text-sm',
-              viewMode === 'unassigned' 
-                ? 'bg-red-600 hover:bg-red-700 border-red-600 text-white' 
-                : 'border-red-300 text-red-600 hover:bg-red-50'
+              'flex items-center gap-1 shadow-sm',
+              isCompact ? 'text-xs h-7' : 'text-sm h-8',
+              viewMode === 'unassigned'
+                ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 border-red-600 text-white shadow-md'
+                : 'border-red-300 text-red-600 hover:bg-red-50 bg-white'
             )}
           >
-            Unassigned ({unassignedCount})
+            <Hotel className="w-3 h-3" />
+            Unassigned
+            <Badge className="bg-white/20 text-white border-0 px-1.5">{unassignedCount}</Badge>
           </Button>
           <Button
             variant={viewMode === 'assigned' ? "default" : "outline"}
             size="sm"
             onClick={() => setViewMode('assigned')}
             className={cn(
-              isCompact ? 'text-xs h-7' : 'text-sm',
-              viewMode === 'assigned' 
-                ? 'bg-green-600 hover:bg-green-700 border-green-600 text-white' 
-                : 'border-green-300 text-green-600 hover:bg-green-50'
+              'flex items-center gap-1 shadow-sm',
+              isCompact ? 'text-xs h-7' : 'text-sm h-8',
+              viewMode === 'assigned'
+                ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 border-green-600 text-white shadow-md'
+                : 'border-green-300 text-green-600 hover:bg-green-50 bg-white'
             )}
           >
-            Assigned ({assignedCount})
+            <CalendarCheck className="w-3 h-3" />
+            Assigned
+            <Badge className="bg-white/20 text-white border-0 px-1.5">{assignedCount}</Badge>
           </Button>
         </div>
         
@@ -422,20 +568,40 @@ const ReservationSidebar: React.FC<ReservationSidebarProps> = ({
             variant={viewMode === 'all' ? "default" : "outline"}
             size="sm"
             onClick={() => setViewMode('all')}
-            className={isCompact ? 'text-xs h-7' : 'text-sm'}
+            className={cn(
+              'shadow-sm',
+              isCompact ? 'text-xs h-7' : 'text-sm h-8',
+              viewMode === 'all'
+                ? 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md'
+                : 'bg-white hover:bg-gray-50'
+            )}
           >
-            Show All ({reservations.length})
+            <Users className="w-3 h-3 mr-1" />
+            Show All
+            <Badge className={cn(
+              'ml-1 px-1.5',
+              viewMode === 'all' ? 'bg-white/20 text-white border-0' : 'bg-blue-100 text-blue-700'
+            )}>
+              {reservations.length}
+            </Badge>
           </Button>
-          
-          <Button variant="outline" size="sm" className={isCompact ? 'text-xs h-7' : 'text-sm'}>
-            <Filter className="w-3 h-3 mr-1" />
+
+          <Button
+            variant="outline"
+            size="sm"
+            className={cn(
+              'bg-white hover:bg-gray-50 border-gray-300 shadow-sm',
+              isCompact ? 'text-xs h-7' : 'text-sm h-8'
+            )}
+          >
+            <Filter className="w-3 h-3 mr-1 text-gray-600" />
             More Filters
           </Button>
         </div>
         
         {/* Reservations list */}
-        <div className="flex-1 overflow-hidden">
-          <ScrollArea className="h-full">
+        <div className="flex-1 overflow-hidden bg-white rounded-lg border border-gray-200 shadow-inner">
+          <ScrollArea className="h-full p-2">
             <div className="space-y-3">
               {loading ? (
                 <div className="space-y-3">
@@ -447,9 +613,12 @@ const ReservationSidebar: React.FC<ReservationSidebarProps> = ({
                 </div>
               ) : filteredReservations.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
-                  <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p className={isCompact ? 'text-xs' : 'text-sm'}>No reservations found</p>
-                  <p className={cn('text-gray-400', isCompact ? 'text-xs' : 'text-xs')}>Try adjusting your filters</p>
+                  <div className="relative inline-block">
+                    <Users className="w-16 h-16 mx-auto mb-3 text-gray-300" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full opacity-30 blur-xl"></div>
+                  </div>
+                  <p className={cn('font-medium text-gray-700', isCompact ? 'text-sm' : 'text-base')}>No reservations found</p>
+                  <p className={cn('text-gray-500 mt-1', isCompact ? 'text-xs' : 'text-sm')}>Try adjusting your filters</p>
                 </div>
               ) : (
                 filteredReservations.map(reservation => (

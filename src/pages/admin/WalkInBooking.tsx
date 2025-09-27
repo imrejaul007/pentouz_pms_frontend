@@ -27,6 +27,12 @@ interface WalkInBookingProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  prefilledData?: {
+    roomNumber?: string;
+    checkIn?: string;
+    checkOut?: string;
+    nights?: number;
+  };
 }
 
 interface GuestForm {
@@ -59,7 +65,7 @@ interface BookingForm {
   advanceAmount: number;
 }
 
-export default function WalkInBooking({ isOpen, onClose, onSuccess }: WalkInBookingProps) {
+export default function WalkInBooking({ isOpen, onClose, onSuccess, prefilledData }: WalkInBookingProps) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [step, setStep] = useState(1);
@@ -84,8 +90,8 @@ export default function WalkInBooking({ isOpen, onClose, onSuccess }: WalkInBook
   const [bookingForm, setBookingForm] = useState<BookingForm>({
     hotelId: '', // Will be set dynamically based on user context or available hotels
     roomIds: [],
-    checkIn: new Date().toISOString().split('T')[0],
-    checkOut: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Set to 2 days later
+    checkIn: prefilledData?.checkIn || new Date().toISOString().split('T')[0],
+    checkOut: prefilledData?.checkOut || new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Set to 2 days later
     guestDetails: {
       adults: 1,
       children: 0,
@@ -114,6 +120,27 @@ export default function WalkInBooking({ isOpen, onClose, onSuccess }: WalkInBook
       fetchAvailableRooms();
     }
   }, [bookingForm.hotelId, bookingForm.checkIn, bookingForm.checkOut]);
+
+  // Auto-select room when prefilled room number is available and rooms are loaded
+  useEffect(() => {
+    if (prefilledData?.roomNumber && availableRooms.length > 0 && bookingForm.roomIds.length === 0) {
+      const matchingRoom = availableRooms.find(room =>
+        room.roomNumber === prefilledData.roomNumber && room.isAvailable
+      );
+
+      if (matchingRoom) {
+        console.log('🎯 Auto-selecting pre-filled room:', matchingRoom.roomNumber);
+        setBookingForm(prev => ({
+          ...prev,
+          roomIds: [matchingRoom._id]
+        }));
+      } else {
+        console.log('⚠️ Pre-filled room not found or not available:', prefilledData.roomNumber);
+        // Show user which room was requested but unavailable
+        toast.error(`Room ${prefilledData.roomNumber} is not available for the selected dates`);
+      }
+    }
+  }, [availableRooms, prefilledData?.roomNumber, bookingForm.roomIds.length]);
 
   const fetchHotels = async () => {
     try {
@@ -357,11 +384,27 @@ export default function WalkInBooking({ isOpen, onClose, onSuccess }: WalkInBook
         toast.success('Guest account created successfully');
       } catch (userError) {
         console.error('Error creating user:', userError);
-        
+        console.error('User error status:', userError.response?.status);
+        console.error('User error message:', userError.response?.data?.message);
+        console.error('Full error:', userError.response?.data);
+
         // Check if user already exists
-        if (userError.response?.status === 400 && userError.response?.data?.message?.includes('already exists')) {
-          toast.error(`User with email ${guestForm.email} already exists. Please use a different email.`);
-          return;
+        if (userError.response?.status === 409 && userError.response?.data?.message?.includes('already exists')) {
+          // User exists, fetch the existing user using search
+          try {
+            const existingUsersResponse = await adminService.getUsers({ search: guestForm.email });
+            const existingUser = existingUsersResponse.data.users.find(user => user.email === guestForm.email);
+            if (existingUser) {
+              userId = existingUser._id;
+              toast.info(`Using existing guest account for ${guestForm.email}`);
+            } else {
+              toast.error('User exists but could not retrieve details. Please try again.');
+              return;
+            }
+          } catch (fetchError) {
+            toast.error('Could not retrieve existing user details. Please try again.');
+            return;
+          }
         } else if (userError.response?.status === 400) {
           toast.error(`User creation failed: ${userError.response?.data?.message || 'Invalid user data'}`);
           return;
@@ -372,6 +415,14 @@ export default function WalkInBooking({ isOpen, onClose, onSuccess }: WalkInBook
       }
 
       // Create booking
+      console.log('🔍 Creating booking with userId:', userId);
+      console.log('🔍 Payment details:', {
+        paymentMethod: bookingForm.paymentMethod,
+        advanceAmount: bookingForm.advanceAmount,
+        totalAmount: calculateTotalAmount(),
+        paymentStatus: bookingForm.advanceAmount >= calculateTotalAmount() ? 'paid' : (bookingForm.advanceAmount > 0 ? 'partially_paid' : 'pending')
+      });
+
       try {
                  const bookingData = {
            hotelId: bookingForm.hotelId,
@@ -382,8 +433,15 @@ export default function WalkInBooking({ isOpen, onClose, onSuccess }: WalkInBook
            guestDetails: bookingForm.guestDetails,
            totalAmount: calculateTotalAmount(),
            currency: bookingForm.currency,
-           paymentStatus: bookingForm.paymentStatus,
-           status: 'confirmed' as const
+           paymentStatus: bookingForm.advanceAmount >= calculateTotalAmount() ? 'paid' : (bookingForm.advanceAmount > 0 ? 'partially_paid' : 'pending'),
+           status: 'confirmed' as const,
+           // Include payment information
+           paymentMethod: bookingForm.paymentMethod,
+           advanceAmount: bookingForm.advanceAmount,
+           paymentReference: '', // Can be extended later for card/UPI references
+           paymentNotes: bookingForm.advanceAmount > 0 ? `Walk-in payment: ${formatCurrency(bookingForm.advanceAmount, bookingForm.currency)} via ${bookingForm.paymentMethod}` : '',
+           // Required idempotency key
+           idempotencyKey: `walkin-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
          };
 
         await adminService.createBooking(bookingData);
@@ -414,7 +472,11 @@ export default function WalkInBooking({ isOpen, onClose, onSuccess }: WalkInBook
         }, 1500);
       } catch (bookingError) {
         console.error('Error creating booking:', bookingError);
-        
+        console.error('Booking error status:', bookingError.response?.status);
+        console.error('Booking error message:', bookingError.response?.data?.message);
+        console.error('Full booking error:', bookingError.response?.data);
+        console.error('Booking data that failed:', typeof bookingData !== 'undefined' ? bookingData : 'bookingData not available');
+
         if (bookingError.response?.status === 400) {
           toast.error(`Booking failed: ${bookingError.response?.data?.message || 'Invalid booking data'}`);
         } else if (bookingError.response?.status === 409) {
@@ -472,10 +534,25 @@ export default function WalkInBooking({ isOpen, onClose, onSuccess }: WalkInBook
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Walk-in Booking"
+      title={prefilledData?.roomNumber ? `New Booking - Room ${prefilledData.roomNumber}` : "Walk-in Booking"}
       size="xl"
     >
       <div className="space-y-6">
+        {/* Pre-filled Info Banner */}
+        {prefilledData?.roomNumber && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-blue-800">
+              <CheckCircle className="h-5 w-5" />
+              <span className="font-medium">
+                Quick Booking from Tape Chart - Room {prefilledData.roomNumber}
+              </span>
+            </div>
+            <p className="text-sm text-blue-600 mt-1">
+              Check-in: {prefilledData.checkIn} | Check-out: {prefilledData.checkOut} | {prefilledData.nights} night{prefilledData.nights !== 1 ? 's' : ''}
+            </p>
+          </div>
+        )}
+
         {/* Progress Steps */}
         <div className="flex items-center justify-center space-x-4 mb-6">
           {[1, 2, 3].map((stepNumber) => (
@@ -780,6 +857,11 @@ export default function WalkInBooking({ isOpen, onClose, onSuccess }: WalkInBook
                              <Home className="h-4 w-4 text-gray-400 mr-2" />
                              <span className="font-medium">Room {room.roomNumber}</span>
                              <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded">Available</span>
+                             {prefilledData?.roomNumber === room.roomNumber && (
+                               <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded font-medium">
+                                 Pre-selected
+                               </span>
+                             )}
                            </div>
                            <div className="text-sm text-gray-600">
                              {room.type} • Floor {room.floor} • Status: {room.currentStatus}

@@ -26,6 +26,7 @@ import {
 } from '../../services/staffDashboardService';
 import { checkoutInventoryService, CheckoutInventory } from '../../services/checkoutInventoryService';
 import { dailyRoutineCheckService, DailyCheckData } from '../../services/dailyRoutineCheckService';
+import TodayArrivalsWidget from '../../components/staff/TodayArrivalsWidget';
 
 interface StaffDashboardData {
   today: StaffTodayData;
@@ -256,6 +257,30 @@ export default function StaffDashboard() {
                 </div>
               </div>
             </Card>
+          </div>
+
+          {/* Today's Arrivals Widget */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1">
+              <TodayArrivalsWidget />
+            </div>
+
+            {/* Today's Summary Cards */}
+            <div className="lg:col-span-2 space-y-6">
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Today's Summary</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{data.roomStatus.summary.occupied}</div>
+                    <div className="text-sm text-blue-700">Occupied Rooms</div>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">{data.roomStatus.summary.vacant_clean}</div>
+                    <div className="text-sm text-green-700">Ready Rooms</div>
+                  </div>
+                </div>
+              </Card>
+            </div>
           </div>
 
           {/* Quick Actions */}
